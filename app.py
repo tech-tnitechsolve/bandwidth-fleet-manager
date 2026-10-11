@@ -16,7 +16,7 @@ from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 from typing import List, Optional
 
-CURRENT_VERSION = "v1.6.0"
+CURRENT_VERSION = "v1.6.1"
 GITHUB_REPO = "tech-tnitechsolve/bandwidth-fleet-manager"
 
 app = FastAPI(title="Bandwidth Fleet Manager Pro Engine", version=CURRENT_VERSION)
@@ -80,8 +80,7 @@ def get_current_user(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Chưa đăng nhập")
     token = authorization.split(" ")[1]
-    expected = generate_token(ADMIN_USER)
-    if token != expected:
+    if token != generate_token(ADMIN_USER):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Phiên đăng nhập hết hạn")
     return ADMIN_USER
 
@@ -96,8 +95,7 @@ class LoginRequest(BaseModel):
 @app.post("/api/auth/login")
 def login(req: LoginRequest):
     if req.username == ADMIN_USER and req.password == ADMIN_PASS:
-        token = generate_token(req.username)
-        return {"success": True, "token": token, "username": req.username}
+        return {"success": True, "token": generate_token(req.username), "username": req.username}
     raise HTTPException(status_code=400, detail="Tài khoản hoặc mật khẩu không chính xác")
 
 class ChangePasswordRequest(BaseModel):
@@ -126,8 +124,7 @@ def change_password(req: ChangePasswordRequest, user: str = Depends(get_current_
         with open(ENV_FILE, "w") as f:
             f.writelines(lines)
             
-    token = generate_token(ADMIN_USER)
-    return {"success": True, "new_token": token}
+    return {"success": True, "new_token": generate_token(ADMIN_USER)}
 
 def check_proxy_live_raw(endpoint: str, timeout: float = 2.5):
     try:
@@ -137,8 +134,7 @@ def check_proxy_live_raw(endpoint: str, timeout: float = 2.5):
         port = int(port_str)
         t_start = time.time()
         with socket.create_connection((host, port), timeout=timeout):
-            ping_ms = round((time.time() - t_start) * 1000)
-            return {"is_live": True, "ping_ms": ping_ms}
+            return {"is_live": True, "ping_ms": round((time.time() - t_start) * 1000)}
     except Exception:
         return {"is_live": False, "ping_ms": 0}
 
@@ -239,12 +235,7 @@ def get_node_network_stats(node_id):
                         if len(parts) >= 4 and parts[3] == "01": sockets += 1
             except Exception: pass
                         
-    return {
-        "traffic_mb": traffic_mb,
-        "traffic_gb": traffic_gb,
-        "sockets": sockets,
-        "status": "running"
-    }
+    return {"traffic_mb": traffic_mb, "traffic_gb": traffic_gb, "sockets": sockets, "status": "running"}
 
 def get_system_temperature():
     try:
@@ -345,8 +336,7 @@ def set_vps_alias(req: VpsAliasRequest, user: str = Depends(get_current_user)):
 @app.get("/api/system/audit")
 def system_audit(user: str = Depends(get_current_user)):
     items = []
-    docker_ok = False
-    docker_ver = "Không phát hiện"
+    docker_ok, docker_ver = False, "Không phát hiện"
     try:
         docker_ver = client.version().get("Version", "Unknown")
         docker_ok = True
@@ -362,16 +352,13 @@ def system_audit(user: str = Depends(get_current_user)):
     except Exception: pass
     items.append({"name": "Thuật Toán BBR Congestion Control", "status": bbr_ok, "detail": "BBR Đang hoạt động" if bbr_ok else "Chưa kích hoạt BBR"})
 
-    zram_ok = False
-    zram_detail = "Chưa bật ZRAM"
+    zram_ok, zram_detail = False, "Chưa bật ZRAM"
     try:
         out = subprocess.check_output(["swapon", "--show"], text=True)
         if "/dev/zram0" in out:
-            zram_ok = True
-            zram_detail = "ZRAM ZSTD Priority 10 Active"
+            zram_ok, zram_detail = True, "ZRAM ZSTD Priority 10 Active"
         elif os.path.exists("/sys/block/zram0"):
-            zram_ok = True
-            zram_detail = "ZRAM Block Device Active"
+            zram_ok, zram_detail = True, "ZRAM Block Device Active"
     except Exception: pass
     items.append({"name": "Bộ Nhớ Nén ZRAM ZSTD", "status": zram_ok, "detail": zram_detail, "can_fix": not zram_ok})
 
@@ -388,7 +375,6 @@ def system_audit(user: str = Depends(get_current_user)):
     except Exception: pass
     items.append({"name": "Bảng Theo Dõi Mạng (Conntrack Max)", "status": ct_max >= 262144, "detail": f"Sức chứa {ct_max} streams"})
     items.append({"name": "Tường Lửa Port 3100 (Web Dashboard)", "status": True, "detail": "Đã cấu hình tự động mở trên host"})
-
     return items
 
 @app.post("/api/system/enable-zram")
@@ -461,8 +447,7 @@ def check_update(user: str = Depends(get_current_user)):
 
 @app.post("/api/system/apply-update")
 def apply_update(user: str = Depends(get_current_user)):
-    cmd = "sleep 1 && cd /opt/bandwidth-manager && git fetch && git reset --hard origin/main && systemctl restart bandwidth-manager"
-    subprocess.Popen(cmd, shell=True)
+    subprocess.Popen("sleep 1 && cd /opt/bandwidth-manager && git fetch && git reset --hard origin/main && systemctl restart bandwidth-manager", shell=True)
     return {"status": "updating"}
 
 @app.get("/api/nodes/{nid}/logs")
@@ -493,9 +478,8 @@ def get_accounts(user: str = Depends(get_current_user)):
 @app.post("/api/accounts")
 def create_account(req: AccountModel, user: str = Depends(get_current_user)):
     accounts = load_json(ACCOUNTS_FILE, default=[])
-    acc_id = str(uuid.uuid4())[:8]
     data = req.dict()
-    data["id"] = acc_id
+    data["id"] = str(uuid.uuid4())[:8]
     accounts.append(data)
     save_json(ACCOUNTS_FILE, accounts)
     return {"success": True, "account": data}
@@ -531,7 +515,8 @@ def parse_proxy_line(line: str, prefix: str, current_idx: int):
         
     auth, ip_port = "", ""
     if "@" in rest:
-        auth, ip_port = rest.rsplit("@", 1)[0], rest.rsplit("@", 1)[1]
+        auth = rest.rsplit("@", 1)[0]
+        ip_port = rest.rsplit("@", 1)[1]
     elif rest.count(":") == 4 and not device_name:
         p = rest.split(":")
         ip_port, auth, device_name = f"{p[0]}:{p[1]}", f"{p[2]}:{p[3]}", p[4]
@@ -552,13 +537,186 @@ def parse_proxy_line(line: str, prefix: str, current_idx: int):
         "device_name": device_name
     }
 
+# RUNNER CỐT LÕI (ĐÃ BỎ HOSTNAME Ở APP CONTAINER ĐỂ FIX LỖI CONFLICTING OPTIONS)
+def run_node_containers(n):
+    tun_name = f"tun_{n['id']}"
+    app_name = f"app_{n['id']}"
+    dev = n["device_name"]
+    node_id = n["id"]
+    
+    m_dir = f"/opt/bandwidth-manager/data/meta_{node_id}"
+    os.makedirs(m_dir, exist_ok=True)
+    m_file = f"{m_dir}/machine-id"
+    if not os.path.exists(m_file):
+        with open(m_file, "w") as f:
+            f.write(uuid.uuid4().hex + "\n")
+
+    for c_old in [app_name, tun_name]:
+        try: client.containers.get(c_old).remove(force=True)
+        except Exception: pass
+
+    if not os.path.exists("/dev/net/tun"):
+        os.makedirs("/dev/net", exist_ok=True)
+        subprocess.run("mknod /dev/net/tun c 10 200 2>/dev/null || true", shell=True)
+        subprocess.run("chmod 666 /dev/net/tun 2>/dev/null || true", shell=True)
+
+    # 1. Khởi động TUN container với tun2proxy (giữ hostname ở TUN)
+    try:
+        c_tun = client.containers.run(
+            image="ghcr.io/tun2proxy/tun2proxy:v0.8.3",
+            name=tun_name,
+            hostname=dev,
+            detach=True,
+            restart_policy={"Name": "on-failure", "MaximumRetryCount": 5},
+            cap_add=["NET_ADMIN"],
+            devices=["/dev/net/tun:/dev/net/tun"],
+            dns=["1.1.1.1", "8.8.8.8"],
+            sysctls={"net.ipv6.conf.all.disable_ipv6": "1", "net.ipv6.conf.default.disable_ipv6": "1"},
+            cpu_shares=1024,
+            mem_reservation="8m",
+            command=["--dns", "virtual", "--proxy", n["proxy_url"], "--verbosity", "off"]
+        )
+    except Exception:
+        c_tun = client.containers.run(
+            image="ghcr.io/tun2proxy/tun2proxy:v0.8.3",
+            name=tun_name,
+            hostname=dev,
+            detach=True,
+            restart_policy={"Name": "on-failure", "MaximumRetryCount": 5},
+            cap_add=["NET_ADMIN"],
+            devices=["/dev/net/tun:/dev/net/tun"],
+            dns=["1.1.1.1", "8.8.8.8"],
+            cpu_shares=1024,
+            mem_reservation="8m",
+            command=["--dns", "virtual", "--proxy", n["proxy_url"], "--verbosity", "off"]
+        )
+    
+    PID_CACHE[node_id] = c_tun.attrs["State"]["Pid"] if "State" in c_tun.attrs else 0
+    time.sleep(1.2)
+    
+    # 2. Khởi động App container (TUYỆT ĐỐI KHÔNG TRUYỀN HOSTNAME ĐỂ TRÁNH LỖI CONFLICT VỚI network_mode)
+    net_mode = f"container:{tun_name}"
+    plt = n["platform"].lower()
+    auth = n["auth"]
+    vols = {m_file: {"bind": "/etc/machine-id", "mode": "ro"}}
+    REST_POL = {"Name": "on-failure", "MaximumRetryCount": 3}
+    
+    if plt == "traffmonetizer":
+        data_dir = f"/opt/bandwidth-manager/data/traff_{node_id}"
+        os.makedirs(data_dir, exist_ok=True)
+        vols[data_dir] = {"bind": "/.config/traffmonetizer", "mode": "rw"}
+        client.containers.run(
+            image="traffmonetizer/cli_v2:latest",
+            name=app_name,
+            detach=True,
+            network_mode=net_mode,
+            restart_policy=REST_POL,
+            cpu_shares=1024,
+            mem_reservation="15m",
+            volumes=vols,
+            command=["start", "accept", "--device-name", dev, "--token", auth.get("token", "")]
+        )
+    elif plt == "honeygain":
+        client.containers.run(
+            image="honeygain/honeygain:0.6.6",
+            name=app_name,
+            detach=True,
+            network_mode=net_mode,
+            restart_policy=REST_POL,
+            cpu_shares=1024,
+            mem_reservation="15m",
+            volumes=vols,
+            command=["-tou-accept", "-email", auth.get("email", ""), "-pass", auth.get("password", ""), "-device", dev]
+        )
+    elif plt == "pawns":
+        client.containers.run(
+            image="iproyal/pawns-cli:latest",
+            name=app_name,
+            detach=True,
+            network_mode=net_mode,
+            restart_policy=REST_POL,
+            cpu_shares=1024,
+            mem_reservation="15m",
+            volumes=vols,
+            command=[f"-email={auth.get('email', '')}", f"-password={auth.get('password', '')}", f"-device-name={dev}", f"-device-id={dev}", "-accept-tos"]
+        )
+    elif plt == "repocket":
+        client.containers.run(
+            image="repocket/repocket:latest",
+            name=app_name,
+            detach=True,
+            network_mode=net_mode,
+            restart_policy=REST_POL,
+            cpu_shares=1024,
+            mem_reservation="25m",
+            volumes=vols,
+            environment={"RP_EMAIL": auth.get("email", ""), "RP_API_KEY": auth.get("token", "")}
+        )
+    elif plt == "bitping":
+        data_dir = f"/opt/bandwidth-manager/data/bitping_{node_id}"
+        os.makedirs(data_dir, exist_ok=True)
+        vols[data_dir] = {"bind": "/root/.bitpingd", "mode": "rw"}
+        client.containers.run(
+            image="bitping/bitpingd:latest",
+            name=app_name,
+            detach=True,
+            network_mode=net_mode,
+            restart_policy=REST_POL,
+            cpu_shares=1024,
+            mem_reservation="15m",
+            volumes=vols,
+            environment={"BITPING_EMAIL": auth.get("email", ""), "BITPING_PASSWORD": auth.get("password", "")}
+        )
+    elif plt == "earnfm":
+        client.containers.run(
+            image="earnfm/earnfm-client:latest",
+            name=app_name,
+            detach=True,
+            network_mode=net_mode,
+            restart_policy=REST_POL,
+            cpu_shares=1024,
+            mem_reservation="15m",
+            volumes=vols,
+            environment={"EARNFM_TOKEN": auth.get("token", "")}
+        )
+    elif plt == "packetstream":
+        client.containers.run(
+            image="packetstream/psclient:latest",
+            name=app_name,
+            detach=True,
+            network_mode=net_mode,
+            restart_policy=REST_POL,
+            cpu_shares=1024,
+            mem_reservation="15m",
+            volumes=vols,
+            environment={"CID": auth.get("token", "")}
+        )
+
+def stop_node_containers(nid):
+    PID_CACHE.pop(nid, None)
+    for c_name in [f"app_{nid}", f"tun_{nid}"]:
+        try:
+            c = client.containers.get(c_name)
+            c.stop(timeout=2)
+            c.remove(force=True)
+        except Exception: pass
+
+# TỰ ĐỘNG BẬT CONTAINER NGẦM KHI NHẬP BATCH
+def async_auto_start_nodes(node_batch):
+    for n in node_batch:
+        try:
+            run_node_containers(n)
+            time.sleep(1.0)
+        except Exception as e:
+            print(f"[AUTO-START ERROR] Node {n.get('id')}: {traceback.format_exc()}", flush=True)
+
 @app.post("/api/nodes/import")
 def import_nodes(req: ImportBatchModel, user: str = Depends(get_current_user)):
     try:
         nodes = load_nodes()
         lines = req.proxies_raw.strip().split("\n")
         start_idx = len(nodes) + 1
-        added = 0
+        new_nodes = []
         for i, line in enumerate(lines):
             parsed = parse_proxy_line(line, req.prefix, start_idx + i)
             if not parsed: continue
@@ -578,10 +736,10 @@ def import_nodes(req: ImportBatchModel, user: str = Depends(get_current_user)):
                 },
                 "ping_ms": 0,
                 "is_live": True,
-                "status": "stopped"
+                "status": "running"   # TỰ ĐỘNG BẬT RUNNING
             }
             nodes.append(node)
-            added += 1
+            new_nodes.append(node)
         save_nodes(nodes)
         
         if req.account_name:
@@ -597,181 +755,13 @@ def import_nodes(req: ImportBatchModel, user: str = Depends(get_current_user)):
                 })
                 save_json(ACCOUNTS_FILE, accounts)
                 
-        return {"added": added, "total": len(nodes)}
+        # KÍCH HOẠT CHẠY CONTAINER TỰ ĐỘNG KHÔNG CẦN BẤM TAY
+        if new_nodes:
+            threading.Thread(target=async_auto_start_nodes, args=(new_nodes,), daemon=True).start()
+                
+        return {"added": len(new_nodes), "total": len(nodes), "auto_started": True}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Lỗi khi lưu node: {str(e)}")
-
-# HÀM RUNNER CỐT LÕI: HỖ TRỢ ĐỦ 7 PLATFORM + TUN2PROXY
-def run_node_containers(n):
-    tun_name = f"tun_{n['id']}"
-    app_name = f"app_{n['id']}"
-    dev = n["device_name"]
-    node_id = n["id"]
-    
-    m_dir = f"/opt/bandwidth-manager/data/meta_{node_id}"
-    os.makedirs(m_dir, exist_ok=True)
-    m_file = f"{m_dir}/machine-id"
-    if not os.path.exists(m_file):
-        with open(m_file, "w") as f:
-            f.write(uuid.uuid4().hex + "\n")
-
-    for c_old in [app_name, tun_name]:
-        try: client.containers.get(c_old).remove(force=True)
-        except Exception: pass
-
-    # Tự động khắc phục thiết bị /dev/net/tun
-    if not os.path.exists("/dev/net/tun"):
-        os.makedirs("/dev/net", exist_ok=True)
-        subprocess.run("mknod /dev/net/tun c 10 200 2>/dev/null || true", shell=True)
-        subprocess.run("chmod 666 /dev/net/tun 2>/dev/null || true", shell=True)
-
-    # Khởi động TUN container với tun2proxy
-    try:
-        c_tun = client.containers.run(
-            image="ghcr.io/tun2proxy/tun2proxy:v0.8.3",
-            name=tun_name,
-            hostname=dev,
-            detach=True,
-            restart_policy={"Name": "on-failure", "MaximumRetryCount": 5},
-            cap_add=["NET_ADMIN"],
-            devices=["/dev/net/tun:/dev/net/tun"],
-            dns=["1.1.1.1", "8.8.8.8"],
-            sysctls={"net.ipv6.conf.all.disable_ipv6": "1", "net.ipv6.conf.default.disable_ipv6": "1"},
-            cpu_shares=1024,
-            mem_reservation="8m",
-            command=["--dns", "virtual", "--proxy", n["proxy_url"], "--verbosity", "off"]
-        )
-    except Exception:
-        # Fallback an toàn nếu kernel/Docker không cho can thiệp sysctl
-        c_tun = client.containers.run(
-            image="ghcr.io/tun2proxy/tun2proxy:v0.8.3",
-            name=tun_name,
-            hostname=dev,
-            detach=True,
-            restart_policy={"Name": "on-failure", "MaximumRetryCount": 5},
-            cap_add=["NET_ADMIN"],
-            devices=["/dev/net/tun:/dev/net/tun"],
-            dns=["1.1.1.1", "8.8.8.8"],
-            cpu_shares=1024,
-            mem_reservation="8m",
-            command=["--dns", "virtual", "--proxy", n["proxy_url"], "--verbosity", "off"]
-        )
-    
-    PID_CACHE[node_id] = c_tun.attrs["State"]["Pid"] if "State" in c_tun.attrs else 0
-    time.sleep(1.2)
-    
-    net_mode = f"container:{tun_name}"
-    plt = n["platform"].lower()
-    auth = n["auth"]
-    vols = {m_file: {"bind": "/etc/machine-id", "mode": "ro"}}
-    REST_POL = {"Name": "on-failure", "MaximumRetryCount": 3}
-    
-    if plt == "traffmonetizer":
-        data_dir = f"/opt/bandwidth-manager/data/traff_{node_id}"
-        os.makedirs(data_dir, exist_ok=True)
-        vols[data_dir] = {"bind": "/.config/traffmonetizer", "mode": "rw"}
-        client.containers.run(
-            image="traffmonetizer/cli_v2:latest",
-            name=app_name,
-            hostname=dev,
-            detach=True,
-            network_mode=net_mode,
-            restart_policy=REST_POL,
-            cpu_shares=1024,
-            mem_reservation="15m",
-            volumes=vols,
-            command=["start", "accept", "--device-name", dev, "--token", auth.get("token", "")]
-        )
-    elif plt == "honeygain":
-        client.containers.run(
-            image="honeygain/honeygain:0.6.6",
-            name=app_name,
-            hostname=dev,
-            detach=True,
-            network_mode=net_mode,
-            restart_policy=REST_POL,
-            cpu_shares=1024,
-            mem_reservation="15m",
-            volumes=vols,
-            command=["-tou-accept", "-email", auth.get("email", ""), "-pass", auth.get("password", ""), "-device", dev]
-        )
-    elif plt == "pawns":
-        client.containers.run(
-            image="iproyal/pawns-cli:latest",
-            name=app_name,
-            hostname=dev,
-            detach=True,
-            network_mode=net_mode,
-            restart_policy=REST_POL,
-            cpu_shares=1024,
-            mem_reservation="15m",
-            volumes=vols,
-            command=[f"-email={auth.get('email', '')}", f"-password={auth.get('password', '')}", f"-device-name={dev}", f"-device-id={dev}", "-accept-tos"]
-        )
-    elif plt == "repocket":
-        client.containers.run(
-            image="repocket/repocket:latest",
-            name=app_name,
-            hostname=dev,
-            detach=True,
-            network_mode=net_mode,
-            restart_policy=REST_POL,
-            cpu_shares=1024,
-            mem_reservation="25m",
-            volumes=vols,
-            environment={"RP_EMAIL": auth.get("email", ""), "RP_API_KEY": auth.get("token", "")}
-        )
-    elif plt == "bitping":
-        data_dir = f"/opt/bandwidth-manager/data/bitping_{node_id}"
-        os.makedirs(data_dir, exist_ok=True)
-        vols[data_dir] = {"bind": "/root/.bitpingd", "mode": "rw"}
-        client.containers.run(
-            image="bitping/bitpingd:latest",
-            name=app_name,
-            hostname=dev,
-            detach=True,
-            network_mode=net_mode,
-            restart_policy=REST_POL,
-            cpu_shares=1024,
-            mem_reservation="15m",
-            volumes=vols,
-            environment={"BITPING_EMAIL": auth.get("email", ""), "BITPING_PASSWORD": auth.get("password", "")}
-        )
-    elif plt == "earnfm":
-        client.containers.run(
-            image="earnfm/earnfm-client:latest",
-            name=app_name,
-            hostname=dev,
-            detach=True,
-            network_mode=net_mode,
-            restart_policy=REST_POL,
-            cpu_shares=1024,
-            mem_reservation="15m",
-            volumes=vols,
-            environment={"EARNFM_TOKEN": auth.get("token", "")}
-        )
-    elif plt == "packetstream":
-        client.containers.run(
-            image="packetstream/psclient:latest",
-            name=app_name,
-            hostname=dev,
-            detach=True,
-            network_mode=net_mode,
-            restart_policy=REST_POL,
-            cpu_shares=1024,
-            mem_reservation="15m",
-            volumes=vols,
-            environment={"CID": auth.get("token", "")}
-        )
-
-def stop_node_containers(nid):
-    PID_CACHE.pop(nid, None)
-    for c_name in [f"app_{nid}", f"tun_{nid}"]:
-        try:
-            c = client.containers.get(c_name)
-            c.stop(timeout=2)
-            c.remove(force=True)
-        except Exception: pass
 
 @app.get("/api/nodes")
 def get_nodes(user: str = Depends(get_current_user)):
