@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bandwidth Fleet Manager — NextGen Dashboard</title>
+  <title>Bandwidth Fleet Manager — Pro Dashboard v1.3.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -11,11 +11,7 @@
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    body {
-      background-color: #0b0f19;
-      color: #f1f5f9;
-      font-family: 'Be Vietnam Pro', sans-serif;
-    }
+    body { background-color: #0b0f19; color: #f1f5f9; font-family: 'Be Vietnam Pro', sans-serif; }
     .font-mono { font-family: 'JetBrains Mono', monospace; }
     .card-panel { background: #111827; border: 1px solid #1f293d; }
     .card-panel:hover { border-color: #374151; }
@@ -25,7 +21,7 @@
 <body class="min-h-screen text-sm">
 <div id="app">
 
-  <!-- ==================== 1. MÀN HÌNH ĐĂNG NHẬP (LOGIN PAGE) ==================== -->
+  <!-- ==================== 1. MÀN HÌNH ĐĂNG NHẬP ==================== -->
   <div v-if="!isLoggedIn" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#090d16] via-[#0f172a] to-[#090d16]">
     <div class="card-panel w-full max-w-md p-8 rounded-2xl shadow-2xl space-y-6 border border-gray-800">
       <div class="text-center space-y-2">
@@ -33,12 +29,12 @@
           <i class="fa fa-server"></i>
         </div>
         <h2 class="text-2xl font-extrabold tracking-tight text-white">Bandwidth Fleet Manager</h2>
-        <p class="text-sm text-gray-400">Đăng nhập tài khoản quản trị cụm node trên VPS</p>
+        <p class="text-xs text-gray-400">Đăng nhập tài khoản quản trị cụm node trên VPS</p>
       </div>
 
       <form @submit.prevent="handleLogin" class="space-y-4 text-sm">
         <div>
-          <label class="block text-gray-400 font-medium mb-1.5">Tài khoản</label>
+          <label class="block text-gray-400 font-medium mb-1.5 text-xs">Tài khoản</label>
           <div class="relative">
             <i class="fa fa-user absolute left-3.5 top-3.5 text-gray-500"></i>
             <input v-model="loginForm.username" type="text" placeholder="admin" required class="w-full bg-gray-900 border border-gray-700 rounded-xl pl-10 p-3 text-white focus:border-indigo-500 outline-none">
@@ -46,7 +42,7 @@
         </div>
 
         <div>
-          <label class="block text-gray-400 font-medium mb-1.5">Mật khẩu</label>
+          <label class="block text-gray-400 font-medium mb-1.5 text-xs">Mật khẩu</label>
           <div class="relative">
             <i class="fa fa-lock absolute left-3.5 top-3.5 text-gray-500"></i>
             <input v-model="loginForm.password" :type="showPass ? 'text' : 'password'" placeholder="••••••••" required class="w-full bg-gray-900 border border-gray-700 rounded-xl pl-10 pr-10 p-3 text-white focus:border-indigo-500 outline-none">
@@ -56,7 +52,7 @@
           </div>
         </div>
 
-        <div v-if="loginError" class="p-3 bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl text-center font-medium">
+        <div v-if="loginError" class="p-3 bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl text-center text-xs font-medium">
           {{ loginError }}
         </div>
 
@@ -78,7 +74,10 @@
           <i class="fa fa-network-wired text-base"></i>
         </div>
         <div>
-          <h1 class="text-base font-extrabold text-white">Bandwidth Fleet Manager</h1>
+          <div class="flex items-center gap-2">
+            <h1 class="text-base font-extrabold text-white">Bandwidth Fleet Manager</h1>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-800">{{ sys.version }} ({{ sys.commit }})</span>
+          </div>
           <span class="text-xs text-gray-400 font-mono">Host: {{ sys.hostname || 'VPS Node' }}</span>
         </div>
       </div>
@@ -96,81 +95,122 @@
         </a>
       </nav>
 
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2.5">
+        <button @click="checkOtaUpdate" :disabled="otaChecking" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-xs font-semibold rounded-xl text-gray-200 border border-gray-700 flex items-center gap-1.5">
+          <i :class="otaChecking ? 'fa fa-spinner fa-spin' : 'fa fa-cloud-download-alt'"></i>
+          <span>Kiểm Tra Cập Nhật</span>
+        </button>
         <button @click="showImportModal = true" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-sm font-bold rounded-xl text-white shadow-lg transition">
           <i class="fa fa-plus mr-1.5"></i> Nhập Batch Proxy
         </button>
-        <button @click="handleLogout" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-medium rounded-xl text-gray-300 transition">
-          <i class="fa fa-sign-out-alt mr-1"></i> Đăng Xuất
+        <button @click="handleLogout" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-medium rounded-xl text-gray-300 transition">
+          <i class="fa fa-sign-out-alt mr-1"></i>
         </button>
       </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-6 space-y-6 pb-12">
 
-      <!-- ==================== TAB 1: TỔNG QUAN ==================== -->
+      <!-- ==================== TAB 1: TỔNG QUAN (CHI TIẾT PHẦN CỨNG CHUẨN WIPTER) ==================== -->
       <section v-if="currentTab === 'overview'" class="space-y-6">
+        
+        <!-- ROW 1: SỨC CHỨA & SỨC KHỎE HỆ THỐNG -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <!-- CARD CHỈ SỐ ỔN ĐỊNH (HEALTH STATUS) -->
+          <div class="card-panel p-5 rounded-2xl border-l-4" :class="sys.health_score >= 80 ? 'border-emerald-500' : 'border-amber-500'">
+            <div class="flex justify-between items-center text-xs text-gray-400 font-bold uppercase">
+              <span>ĐỘ ỔN ĐỊNH MÁY CHỦ</span>
+              <span class="text-xs px-2 py-0.5 rounded-full font-mono font-bold" :class="sys.health_score >= 80 ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400'">
+                Score: {{ sys.health_score }}%
+              </span>
+            </div>
+            <div class="text-base font-extrabold text-white mt-2">
+              {{ sys.health_status }}
+            </div>
+            <div class="text-xs text-gray-400 mt-2">Uptime: <b class="text-emerald-400 font-mono">{{ sys.uptime }}</b></div>
+            <div class="text-xs text-gray-400 mt-1">Nhiệt độ CPU: <b class="text-amber-400 font-mono">{{ sys.temperature }}</b></div>
+          </div>
+
           <!-- CARD BĂNG THÔNG REALTIME -->
-          <div class="card-panel p-5 rounded-2xl border-l-4" :class="sys.network?.is_choking ? 'border-rose-500' : 'border-emerald-500'">
+          <div class="card-panel p-5 rounded-2xl border-l-4" :class="sys.network?.is_choking ? 'border-rose-500' : 'border-indigo-500'">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold">BĂNG THÔNG VPS ({{ sys.network?.interface }})</span>
               <span v-if="sys.network?.is_choking" class="text-rose-400 font-extrabold animate-pulse">[NGHẼN MẠNG]</span>
               <span v-else class="text-emerald-400 font-extrabold">[THÔNG SUỐT]</span>
             </div>
-            <div class="text-3xl font-extrabold font-mono text-white mt-3">
-              {{ sys.network?.total_speed_mbps }} <span class="text-sm text-gray-400 font-normal">Mbps</span>
+            <div class="text-2xl font-extrabold font-mono text-white mt-2">
+              {{ sys.network?.total_speed_mbps }} <span class="text-xs text-gray-400 font-normal">Mbps</span>
             </div>
-            <div class="flex justify-between text-xs text-gray-400 mt-2 font-mono">
+            <div class="flex justify-between text-xs text-gray-400 mt-1 font-mono">
               <span>↓ Tải xuống: {{ sys.network?.rx_speed_mbps }} Mbps</span>
               <span>↑ Tải lên: {{ sys.network?.tx_speed_mbps }} Mbps</span>
             </div>
-            <div class="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-800">
+            <div class="text-[11px] text-gray-500 mt-2 pt-1 border-t border-gray-800">
               Drops: <b :class="sys.network?.packet_drops > 0 ? 'text-rose-400' : 'text-gray-400'">{{ sys.network?.packet_drops }}</b> | Conntrack: {{ sys.network?.conntrack_percent }}%
             </div>
-          </div>
-
-          <!-- CARD CPU -->
-          <div class="card-panel p-5 rounded-2xl">
-            <div class="flex justify-between items-center text-xs text-gray-400">
-              <span class="font-bold">CPU LOAD ({{ sys.cpu_cores }} Cores)</span>
-              <span class="font-extrabold text-white text-base">{{ sys.cpu_percent }}%</span>
-            </div>
-            <div class="w-full bg-gray-800 rounded-full h-2 mt-3">
-              <div class="bg-indigo-500 h-2 rounded-full transition-all" :style="{ width: sys.cpu_percent + '%' }"></div>
-            </div>
-            <div class="text-xs text-gray-400 mt-3 font-mono">Load avg: {{ sys.load_avg }}</div>
-            <div class="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-800">Uptime: <b class="text-gray-300">{{ sys.uptime }}</b></div>
           </div>
 
           <!-- CARD RAM VẬT LÝ -->
           <div class="card-panel p-5 rounded-2xl">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold">RAM VẬT LÝ</span>
-              <span class="font-extrabold text-white text-base">{{ sys.ram_percent }}%</span>
+              <span class="font-extrabold text-white">{{ sys.ram_percent }}%</span>
             </div>
-            <div class="w-full bg-gray-800 rounded-full h-2 mt-3">
+            <div class="w-full bg-gray-800 rounded-full h-2 mt-2.5">
               <div class="bg-emerald-500 h-2 rounded-full transition-all" :style="{ width: sys.ram_percent + '%' }"></div>
             </div>
-            <div class="text-xs text-gray-400 mt-3 font-mono">Dùng: {{ sys.ram_used_mb }} / {{ sys.ram_total_mb }} MB</div>
-            <div class="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-800">Trống: <b class="text-emerald-400 font-mono">{{ sys.ram_free_mb }} MB</b></div>
+            <div class="text-xs text-gray-400 mt-2 font-mono">Dùng: {{ sys.ram_used_mb }} / {{ sys.ram_total_mb }} MB</div>
+            <div class="text-xs text-emerald-400 mt-1 font-mono">Trống: {{ sys.ram_free_mb }} MB</div>
           </div>
 
-          <!-- CARD Ổ ĐĨA -->
+          <!-- CARD SWAP (HIỂN THỊ RÕ RÀNG THEO YÊU CẦU) -->
           <div class="card-panel p-5 rounded-2xl">
             <div class="flex justify-between items-center text-xs text-gray-400">
-              <span class="font-bold">DUNG LƯỢNG ĐĨA</span>
-              <span class="font-extrabold text-white text-base">{{ sys.disk_percent }}%</span>
+              <span class="font-bold">BỘ NHỚ SWAP / ZRAM</span>
+              <span class="font-extrabold text-white">{{ sys.swap_percent }}%</span>
             </div>
-            <div class="w-full bg-gray-800 rounded-full h-2 mt-3">
-              <div class="bg-amber-500 h-2 rounded-full transition-all" :style="{ width: sys.disk_percent + '%' }"></div>
+            <div class="w-full bg-gray-800 rounded-full h-2 mt-2.5">
+              <div class="bg-blue-500 h-2 rounded-full transition-all" :style="{ width: sys.swap_percent + '%' }"></div>
             </div>
-            <div class="text-xs text-gray-400 mt-3 font-mono">Dùng: {{ sys.disk_used_mb }} / {{ sys.disk_total_mb }} MB</div>
-            <div class="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-800">Swap: <b class="text-gray-300 font-mono">{{ sys.swap_used_mb }} MB ({{ sys.swap_percent }}%)</b></div>
+            <div class="text-xs text-gray-400 mt-2 font-mono">Dùng: {{ sys.swap_used_mb }} / {{ sys.swap_total_mb }} MB</div>
+            <div class="text-xs text-gray-400 mt-1 font-mono">Trống: {{ sys.swap_free_mb }} MB</div>
           </div>
         </div>
 
-        <!-- THỐNG KÊ FLEET SUMMARY -->
+        <!-- ROW 2: Ổ ĐĨA & CPU CORES -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- CARD Ổ ĐĨA CHI TIẾT -->
+          <div class="card-panel p-5 rounded-2xl space-y-3">
+            <div class="flex justify-between items-center text-xs text-gray-400">
+              <span class="font-bold uppercase">Ổ ĐĨA HỆ THỐNG (ROOT /)</span>
+              <span class="font-mono text-emerald-400 font-bold">{{ sys.disk_mode }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <div class="text-2xl font-bold font-mono text-white">{{ sys.disk_used_mb }} <span class="text-xs text-gray-400 font-normal">/ {{ sys.disk_total_mb }} MB</span></div>
+              <div class="text-xs font-mono text-gray-400">Trống: <b class="text-amber-400">{{ sys.disk_free_mb }} MB</b> ({{ 100 - sys.disk_percent }}%)</div>
+            </div>
+            <div class="w-full bg-gray-800 rounded-full h-2">
+              <div class="bg-amber-500 h-2 rounded-full transition-all" :style="{ width: sys.disk_percent + '%' }"></div>
+            </div>
+          </div>
+
+          <!-- CARD CPU CHI TIẾT -->
+          <div class="card-panel p-5 rounded-2xl space-y-3">
+            <div class="flex justify-between items-center text-xs text-gray-400">
+              <span class="font-bold uppercase">CPU SỬ DỤNG ({{ sys.cpu_cores }} vCPU)</span>
+              <span class="font-mono text-white font-bold">{{ sys.cpu_percent }}%</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <div class="text-2xl font-bold font-mono text-white">{{ sys.cpu_percent }}% <span class="text-xs text-gray-400 font-normal">đang tải</span></div>
+              <div class="text-xs font-mono text-gray-400">Load average: <b class="text-indigo-400">{{ sys.load_avg }}</b></div>
+            </div>
+            <div class="w-full bg-gray-800 rounded-full h-2">
+              <div class="bg-indigo-500 h-2 rounded-full transition-all" :style="{ width: sys.cpu_percent + '%' }"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- FLEET SUMMARY COUNTERS -->
         <div class="card-panel p-6 rounded-2xl grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
           <div>
             <div class="text-xs text-gray-400 font-bold uppercase">Tổng Số Node</div>
@@ -260,7 +300,7 @@
           </div>
         </div>
 
-        <!-- BẢNG DANH SÁCH NODES -->
+        <!-- BẢNG DANH SÁCH NODES (CÓ NÚT XEM LOG TRỰC TIẾP) -->
         <div class="card-panel rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
@@ -272,8 +312,8 @@
                   <th class="p-3.5">Platform</th>
                   <th class="p-3.5">Provider</th>
                   <th class="p-3.5">Proxy Endpoint</th>
-                  <th class="p-3.5">Proxy Live (Ping)</th>
-                  <th class="p-3.5">Lưu Lượng Kéo (Zero-Probe)</th>
+                  <th class="p-3.5">Proxy Live</th>
+                  <th class="p-3.5">Lưu Lượng Kéo</th>
                   <th class="p-3.5">Sockets</th>
                   <th class="p-3.5">Trạng Thái</th>
                   <th class="p-3.5 text-right">Thao Tác</th>
@@ -294,7 +334,6 @@
                     <span :class="n.protocol === 'socks5' ? 'text-emerald-400' : 'text-blue-400'" class="font-bold text-[10px] uppercase mr-1">[{{ n.protocol }}]</span>
                     {{ n.endpoint }}
                   </td>
-                  <!-- CỘT CHECK LIVE & PING MS TỪ IP GỐC -->
                   <td class="p-3.5 font-mono">
                     <div class="flex items-center gap-1.5">
                       <span v-if="n.is_live" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
@@ -322,15 +361,16 @@
                     </span>
                     <span v-else class="text-gray-500 font-medium">STOPPED</span>
                   </td>
-                  <td class="p-3.5 text-right space-x-1.5">
-                    <button v-if="n.status !== 'running'" @click="startNode(n.id)" class="px-2.5 py-1.5 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-lg text-xs" title="Bật Node"><i class="fa fa-play"></i></button>
-                    <button v-else @click="stopNode(n.id)" class="px-2.5 py-1.5 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg text-xs" title="Tắt Node"><i class="fa fa-stop"></i></button>
-                    <button @click="openEditModal(n)" class="px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs" title="Sửa Proxy/Device"><i class="fa fa-edit"></i></button>
-                    <button @click="deleteNode(n.id)" class="px-2.5 py-1.5 bg-rose-900/60 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs" title="Xóa Node"><i class="fa fa-trash"></i></button>
+                  <td class="p-3.5 text-right space-x-1">
+                    <button v-if="n.status !== 'running'" @click="startNode(n.id)" class="px-2 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-lg text-xs" title="Bật Node"><i class="fa fa-play"></i></button>
+                    <button v-else @click="stopNode(n.id)" class="px-2 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg text-xs" title="Tắt Node"><i class="fa fa-stop"></i></button>
+                    <button @click="openLogsModal(n)" class="px-2 py-1 bg-indigo-900/60 hover:bg-indigo-700 text-indigo-300 hover:text-white rounded-lg text-xs" title="Xem Log Container"><i class="fa fa-terminal"></i></button>
+                    <button @click="openEditModal(n)" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs" title="Sửa Proxy"><i class="fa fa-edit"></i></button>
+                    <button @click="deleteNode(n.id)" class="px-2 py-1 bg-rose-900/60 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs" title="Xóa Node"><i class="fa fa-trash"></i></button>
                   </td>
                 </tr>
                 <tr v-if="filteredNodes.length === 0">
-                  <td colspan="11" class="p-10 text-center text-gray-500 text-sm">Chưa có node nào phù hợp. Hãy bấm "Nhập Batch Proxy" để thêm node mới!</td>
+                  <td colspan="11" class="p-10 text-center text-gray-500 text-sm">Chưa có node nào phù hợp. Bấm "Nhập Batch Proxy" để thêm node!</td>
                 </tr>
               </tbody>
             </table>
@@ -372,6 +412,65 @@
     </main>
   </div>
 
+  <!-- ==================== MODAL XEM LOG CONTAINER (CƠ CHẾ XEM LOG TRỰC TIẾP) ==================== -->
+  <div v-if="showLogsModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
+    <div class="card-panel w-full max-w-4xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-xs">
+      <div class="flex justify-between items-center pb-3 border-b border-gray-800">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa fa-terminal text-indigo-400"></i> Nhật Ký Hoạt Động Node: {{ activeLogNode.device_name }} ({{ activeLogNode.platform }})
+          </h3>
+          <span class="text-[11px] text-gray-400 font-mono">Proxy: {{ activeLogNode.endpoint }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="fetchLogs(activeLogNode.id)" :disabled="logLoading" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs flex items-center gap-1">
+            <i :class="logLoading ? 'fa fa-spinner fa-spin' : 'fa fa-sync-alt'"></i> Làm mới log
+          </button>
+          <button @click="showLogsModal = false" class="text-gray-500 hover:text-gray-300 text-base"><i class="fa fa-times"></i></button>
+        </div>
+      </div>
+
+      <!-- LOG TABS -->
+      <div class="flex gap-2 border-b border-gray-800 pb-2">
+        <button @click="logTab = 'app'" :class="logTab === 'app' ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-900 text-gray-400'" class="px-3 py-1.5 rounded-lg transition">
+          Log Ứng Dụng ({{ activeLogNode.platform }})
+        </button>
+        <button @click="logTab = 'tun'" :class="logTab === 'tun' ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-900 text-gray-400'" class="px-3 py-1.5 rounded-lg transition">
+          Log Tunnel (tun2proxy)
+        </button>
+      </div>
+
+      <!-- TERMINAL DISPLAY (GIỚI HẠN SCROLL CHỐNG TRÀN) -->
+      <div class="bg-black/90 p-4 rounded-xl border border-gray-800 font-mono text-[11px] h-96 overflow-y-auto leading-relaxed text-gray-300 select-text whitespace-pre-wrap">
+        <div v-if="logLoading" class="text-center py-12 text-gray-500"><i class="fa fa-spinner fa-spin mr-2"></i> Đang tải log từ container...</div>
+        <div v-else-if="logTab === 'app'">{{ nodeLogs.app_logs || 'Chưa có log từ ứng dụng.' }}</div>
+        <div v-else>{{ nodeLogs.tun_logs || 'Chưa có log từ tunnel.' }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL CẬP NHẬT OTA (VERSION UPDATE) ==================== -->
+  <div v-if="showOtaModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
+    <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-xs">
+      <h3 class="text-base font-bold text-white flex items-center gap-2">
+        <i class="fa fa-cloud-download-alt text-emerald-400"></i> Phát Hiện Phiên Bản Mới Trên GitHub!
+      </h3>
+      <div class="space-y-2 bg-gray-900/80 p-3.5 rounded-xl border border-gray-800 font-mono">
+        <div>Commit hiện tại: <b class="text-gray-400">{{ otaInfo.local_sha }}</b></div>
+        <div>Commit mới nhất: <b class="text-emerald-400">{{ otaInfo.remote_sha }}</b></div>
+        <div class="text-[11px] text-gray-300 pt-1 border-t border-gray-800">Nội dung: {{ otaInfo.message }}</div>
+      </div>
+      <p class="text-gray-400 text-xs">Hệ thống sẽ kéo mã nguồn mới nhất và tự động khởi động lại Dashboard trong vài giây.</p>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="showOtaModal = false" class="px-4 py-2 bg-gray-800 rounded-xl text-gray-300">Để Sau</button>
+        <button @click="applyOtaUpdate" :disabled="otaUpdating" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 font-bold rounded-xl text-white flex items-center gap-1.5">
+          <span v-if="otaUpdating" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span>Xác Nhận Cập Nhật Ngay</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ==================== MODAL NHẬP BATCH PROXY ==================== -->
   <div v-if="showImportModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
     <div class="card-panel w-full max-w-2xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-sm">
@@ -382,7 +481,6 @@
         <button @click="showImportModal = false" class="text-gray-500 hover:text-gray-300"><i class="fa fa-times"></i></button>
       </div>
 
-      <!-- CHỌN SẴN TỪ SỔ TÀI KHOẢN -->
       <div v-if="accounts.length > 0">
         <label class="text-gray-400 block mb-1 text-xs">Hoặc Chọn Nhanh Tài Khoản Đã Lưu Trong Sổ:</label>
         <select @change="pickSavedAccount($event)" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
@@ -393,7 +491,7 @@
 
       <div class="grid grid-cols-2 gap-3.5">
         <div>
-          <label class="text-gray-400 block mb-1 text-xs font-semibold">Mã Tên Account (Để quản lý)</label>
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Mã Tên Account (Để quản trị)</label>
           <input v-model="form.account_name" placeholder="VD: Traff_VIP_01..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
         </div>
         <div>
@@ -411,12 +509,11 @@
           <input v-model="form.provider" placeholder="VD: Decodo, Webshare..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
         </div>
         <div>
-          <label class="text-gray-400 block mb-1 text-xs font-semibold">Tiền tố Device Name (Để trống sẽ tự sinh mã 8 ký tự tĩnh)</label>
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Tiền tố Device Name (Để trống sẽ sinh mã 8 ký tự tĩnh)</label>
           <input v-model="form.prefix" placeholder="VD: node, vps01 (hoặc để trống)" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
         </div>
       </div>
 
-      <!-- CREDENTIALS CHO BATCH NÀY -->
       <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 space-y-2">
         <div class="font-bold text-indigo-300 text-xs uppercase">Thông tin Xác thực Tài khoản:</div>
         <div v-if="form.platform === 'traffmonetizer'">
@@ -488,6 +585,19 @@ createApp({
     const accounts = ref([]);
     const selectedIds = ref([]);
     const checkLoading = ref(false);
+
+    // OTA Update State
+    const otaChecking = ref(false);
+    const otaUpdating = ref(false);
+    const showOtaModal = ref(false);
+    const otaInfo = ref({});
+
+    // Logs State
+    const showLogsModal = ref(false);
+    const logLoading = ref(false);
+    const logTab = ref("app");
+    const activeLogNode = ref({});
+    const nodeLogs = ref({ app_logs: "", tun_logs: "" });
 
     const showImportModal = ref(false);
     const showEditModal = ref(false);
@@ -576,6 +686,57 @@ createApp({
       if (res.ok) accounts.value = await res.json();
     };
 
+    // Kiểm tra OTA Update từ GitHub
+    const checkOtaUpdate = async () => {
+      otaChecking.value = true;
+      try {
+        const res = await fetch("/api/system/check-update", { headers: getAuthHeaders() });
+        const data = await res.json();
+        if (data.has_update) {
+          otaInfo.value = data;
+          showOtaModal.value = true;
+        } else {
+          alert("Hệ thống đang chạy phiên bản mới nhất!");
+        }
+      } catch (e) {
+        alert("Không thể kiểm tra cập nhật từ GitHub.");
+      } finally {
+        otaChecking.value = false;
+      }
+    };
+
+    const applyOtaUpdate = async () => {
+      otaUpdating.value = true;
+      try {
+        await fetch("/api/system/apply-update", { method: "POST", headers: getAuthHeaders() });
+        alert("Đang cập nhật... Trang web sẽ tự động làm mới sau 5 giây.");
+        setTimeout(() => { window.location.reload(); }, 5000);
+      } catch (e) {
+        alert("Lỗi khi gửi yêu cầu cập nhật.");
+      } finally {
+        otaUpdating.value = false;
+        showOtaModal.value = false;
+      }
+    };
+
+    // Mở Modal xem Logs
+    const openLogsModal = (node) => {
+      activeLogNode.value = node;
+      logTab.value = "app";
+      showLogsModal.value = true;
+      fetchLogs(node.id);
+    };
+
+    const fetchLogs = async (id) => {
+      logLoading.value = true;
+      try {
+        const res = await fetch(`/api/nodes/${id}/logs`, { headers: getAuthHeaders() });
+        if (res.ok) nodeLogs.value = await res.json();
+      } finally {
+        logLoading.value = false;
+      }
+    };
+
     const checkSingleNode = async (id) => {
       await fetch(`/api/nodes/${id}/check`, { method: "POST", headers: getAuthHeaders() });
       loadNodes();
@@ -592,7 +753,7 @@ createApp({
     };
 
     const deleteDeadNodes = async () => {
-      if (confirm(`Bạn có chắc chắn muốn xóa ${deadCount.value} node proxy đã chết?`)) {
+      if (confirm(`Bạn có chắc muốn xóa ${deadCount.value} node proxy đã chết?`)) {
         await fetch("/api/nodes/dead", { method: "DELETE", headers: getAuthHeaders() });
         loadNodes();
       }
@@ -737,7 +898,9 @@ createApp({
       filterPlatform, filterAccount, filterProvider, filterStatus, checkLoading,
       showImportModal, showEditModal, form, editNodeData, pickSavedAccount, deleteAccount,
       submitImport, startNode, stopNode, deleteNode, openEditModal, saveEditNode,
-      toggleSelectAll, startSelected, stopSelected, deleteSelected, loadNodes, checkSingleNode, checkAllLive, deleteDeadNodes
+      toggleSelectAll, startSelected, stopSelected, deleteSelected, loadNodes, checkSingleNode, checkAllLive, deleteDeadNodes,
+      otaChecking, otaUpdating, showOtaModal, otaInfo, checkOtaUpdate, applyOtaUpdate,
+      showLogsModal, logLoading, logTab, activeLogNode, nodeLogs, openLogsModal, fetchLogs
     };
   }
 }).mount("#app");

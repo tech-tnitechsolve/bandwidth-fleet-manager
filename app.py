@@ -6,13 +6,19 @@ import uuid
 import hashlib
 import time
 import socket
+import threading
+import subprocess
+import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, HTTPException, Depends, status, Header
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
 
-app = FastAPI(title="Bandwidth Fleet Manager Pro Engine")
+CURRENT_VERSION = "v1.3.0"
+GITHUB_REPO = "tech-tnitechsolve/bandwidth-fleet-manager"
+
+app = FastAPI(title="Bandwidth Fleet Manager Pro Engine", version=CURRENT_VERSION)
 client = docker.from_env()
 
 DATA_DIR = "/opt/bandwidth-manager/data"
@@ -33,10 +39,8 @@ def load_json(path):
     if not os.path.exists(path):
         return []
     with open(path, "r") as f:
-        try:
-            return json.load(f)
-        except Exception:
-            return []
+        try: return json.load(f)
+        except Exception: return []
 
 def save_json(path, data):
     with open(path, "w") as f:
@@ -66,7 +70,7 @@ def login(req: LoginRequest):
         return {"success": True, "token": token, "username": req.username}
     raise HTTPException(status_code=400, detail="Tài khoản hoặc mật khẩu không chính xác")
 
-# CƠ CHẾ CHECK LIVE TCP TRỰC TIẾP TỪ IP GỐC CỦA VPS (ZERO-DATA / AN TOÀN CHO IP WHITELIST)
+# CƠ CHẾ CHECK LIVE TCP TRỰC TIẾP TỪ IP GỐC CỦA VPS
 def check_proxy_live_raw(endpoint: str, timeout: float = 2.5):
     try:
         if ":" not in endpoint:
@@ -80,10 +84,9 @@ def check_proxy_live_raw(endpoint: str, timeout: float = 2.5):
     except Exception:
         return {"is_live": False, "ping_ms": 0}
 
-# 1. ĐO TẢI MẠNG VẬT LÝ VPS (MBPS & DROP PACKETS REALTIME)
+# 1. ĐO TẢI MẠNG VẬT LÝ VPS (THROUGHPUT MBPS & PACKET DROPS)
 def get_vps_network_load():
     global last_net_time, last_rx_bytes, last_tx_bytes
-    
     default_iface = "eth0"
     try:
         with open("/proc/net/route", "r") as f:
@@ -92,8 +95,7 @@ def get_vps_network_load():
                 if len(fields) >= 2 and fields[1] == "00000000":
                     default_iface = fields[0]
                     break
-    except Exception:
-        pass
+    except Exception: pass
 
     current_rx = 0
     current_tx = 0
@@ -110,8 +112,7 @@ def get_vps_network_load():
                     current_tx = int(p[9])
                     tx_drops = int(p[12])
                     break
-    except Exception:
-        pass
+    except Exception: pass
 
     now = time.time()
     dt = now - last_net_time if last_net_time > 0 else 1.0
@@ -135,8 +136,7 @@ def get_vps_network_load():
             conntrack_count = int(f.read().strip())
         with open("/proc/sys/net/netfilter/nf_conntrack_max", "r") as f:
             conntrack_max = int(f.read().strip())
-    except Exception:
-        pass
+    except Exception: pass
 
     conntrack_percent = round((conntrack_count / conntrack_max) * 100, 1) if conntrack_max > 0 else 0
     is_choking = (rx_drops > 100 or tx_drops > 100 or conntrack_percent > 85)
@@ -153,7 +153,7 @@ def get_vps_network_load():
         "is_choking": is_choking
     }
 
-# 2. ĐO LƯU LƯỢNG TỪNG NODE (SIÊU TỐC VỚI PID CACHE / ZERO-PROBE)
+# 2. ĐO LƯU LƯỢNG TỪNG NODE (ZERO-PROBE TỪ PROC KERNEL)
 def get_node_network_stats(node_id):
     tun_name = f"tun_{node_id}"
     pid = PID_CACHE.get(node_id, 0)
@@ -185,8 +185,7 @@ def get_node_network_stats(node_id):
                         p = line.split()
                         rx_bytes = int(p[1])
                         tx_bytes = int(p[9])
-        except Exception:
-            pass
+        except Exception: pass
                     
     total_bytes = rx_bytes + tx_bytes
     traffic_mb = round(total_bytes / 1048576, 2)
@@ -201,8 +200,7 @@ def get_node_network_stats(node_id):
                         parts = l.strip().split()
                         if len(parts) >= 4 and parts[3] == "01": # TCP_ESTABLISHED
                             sockets += 1
-            except Exception:
-                pass
+            except Exception: pass
                         
     return {
         "traffic_mb": traffic_mb,
@@ -210,6 +208,22 @@ def get_node_network_stats(node_id):
         "sockets": sockets,
         "status": "running"
     }
+
+# 3. ĐO NHIỆT ĐỘ VÀ SỨC KHỎE HỆ THỐNG
+def get_system_temperature():
+    try:
+        if hasattr(psutil, "sensors_temperatures"):
+            temps = psutil.sensors_temperatures()
+            if temps:
+                for name, entries in temps.items():
+                    for entry in entries:
+                        if entry.current and entry.current > 0:
+                            return f"{int(entry.current)}°C"
+        if os.path.exists("/sys/class/thermal/thermal_zone0/temp"):
+            with open("/sys/class/thermal/thermal_zone0/temp", "r") as f:
+                return f"{int(int(f.read().strip()) / 1000)}°C"
+    except Exception: pass
+    return "N/A (Cloud VM)"
 
 @app.get("/api/system")
 def get_system_stats(user: str = Depends(get_current_user)):
@@ -221,10 +235,48 @@ def get_system_stats(user: str = Depends(get_current_user)):
     up_days = int((time.time() - psutil.boot_time()) // 86400)
     up_hours = int(((time.time() - psutil.boot_time()) % 86400) // 3600)
     
+    net_load = get_vps_network_load()
+    temp_str = get_system_temperature()
+    
+    # Kiểm tra chế độ ổ đĩa Read-Only
+    disk_mode = "RW (Bình thường)"
+    try:
+        with open("/proc/mounts", "r") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) >= 4 and parts[1] == "/":
+                    if "ro" in parts[3].split(","):
+                        disk_mode = "RO (Lỗi chỉ đọc!)"
+                    break
+    except Exception: pass
+
+    # Tính điểm ổn định (Health Index)
+    cpu_pct = psutil.cpu_percent(interval=None)
+    score = 100
+    if "RO" in disk_mode: score = 0
+    if cpu_pct > 85: score -= 20
+    elif cpu_pct > 70: score -= 10
+    if mem.percent > 90: score -= 25
+    elif mem.percent > 80: score -= 15
+    if net_load["is_choking"]: score -= 20
+    score = max(0, score)
+    
+    if score >= 90: health_text = "100% Hoàn Hảo (Ổn định 24/7)"
+    elif score >= 70: health_text = f"{score}% Tốt (Tải bình thường)"
+    else: health_text = f"{score}% Cảnh Báo Quá Tải"
+
+    # Lấy commit git hiện tại
+    git_commit = "unknown"
+    try:
+        git_commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd="/opt/bandwidth-manager").decode().strip()
+    except Exception: pass
+
     return {
+        "version": CURRENT_VERSION,
+        "commit": git_commit,
         "hostname": os.uname().nodename,
         "uptime": f"{up_days}d {up_hours}h",
-        "cpu_percent": psutil.cpu_percent(interval=None),
+        "cpu_percent": cpu_pct,
         "cpu_cores": psutil.cpu_count(),
         "load_avg": f"{load[0]:.2f} / {load[1]:.2f}",
         "ram_used_mb": int(mem.used / 1048576),
@@ -233,12 +285,62 @@ def get_system_stats(user: str = Depends(get_current_user)):
         "ram_percent": mem.percent,
         "swap_used_mb": int(swap.used / 1048576),
         "swap_total_mb": int(swap.total / 1048576),
+        "swap_free_mb": int(swap.free / 1048576),
         "swap_percent": swap.percent,
         "disk_used_mb": int(disk.used / 1048576),
         "disk_total_mb": int(disk.total / 1048576),
+        "disk_free_mb": int(disk.free / 1048576),
         "disk_percent": disk.percent,
-        "network": get_vps_network_load()
+        "disk_mode": disk_mode,
+        "temperature": temp_str,
+        "health_score": score,
+        "health_status": health_text,
+        "network": net_load
     }
+
+# 4. KIỂM TRA VÀ CẬP NHẬT PHIÊN BẢN (OTA UPDATE)
+@app.get("/api/system/check-update")
+def check_update(user: str = Depends(get_current_user)):
+    try:
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/commits/main"
+        req = urllib.request.Request(url, headers={"User-Agent": "BandwidthManager"})
+        with urllib.request.urlopen(req, timeout=3.0) as resp:
+            data = json.loads(resp.read().decode())
+            remote_sha = data.get("sha", "")[:7]
+            commit_msg = data.get("commit", {}).get("message", "").split("\n")[0]
+            
+            local_sha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd="/opt/bandwidth-manager").decode().strip()
+            has_update = (remote_sha != local_sha and remote_sha != "")
+            return {
+                "has_update": has_update,
+                "local_sha": local_sha,
+                "remote_sha": remote_sha,
+                "message": commit_msg
+            }
+    except Exception as e:
+        return {"has_update": False, "error": str(e)}
+
+@app.post("/api/system/apply-update")
+def apply_update(user: str = Depends(get_current_user)):
+    # Khởi chạy cập nhật ngầm an toàn để trả về response trước khi restart
+    cmd = 'sleep 1 && cd /opt/bandwidth-manager && git fetch && git reset --hard origin/main && systemctl restart bandwidth-manager'
+    subprocess.Popen(cmd, shell=True)
+    return {"status": "updating"}
+
+# 5. XEM LOGS TỪNG CONTAINER (TAIL 100 DÒNG)
+@app.get("/api/nodes/{nid}/logs")
+def get_node_logs(nid: str, user: str = Depends(get_current_user)):
+    app_log = ""
+    tun_log = ""
+    try:
+        app_log = client.containers.get(f"app_{nid}").logs(tail=100, timestamps=True).decode("utf-8", errors="ignore")
+    except Exception as e:
+        app_log = f"Không lấy được log app: {str(e)}"
+    try:
+        tun_log = client.containers.get(f"tun_{nid}").logs(tail=100, timestamps=True).decode("utf-8", errors="ignore")
+    except Exception as e:
+        tun_log = f"Không lấy được log tun: {str(e)}"
+    return {"app_logs": app_log, "tun_logs": tun_log}
 
 class AccountModel(BaseModel):
     id: Optional[str] = None
@@ -362,7 +464,6 @@ def import_nodes(req: ImportBatchModel, user: str = Depends(get_current_user)):
         added += 1
     save_nodes(nodes)
     
-    # Lưu tài khoản vào sổ để tái sử dụng
     if req.account_name:
         accounts = load_json(ACCOUNTS_FILE)
         if not any(a["account_name"] == req.account_name.strip() and a["platform"] == req.platform.strip() for a in accounts):
@@ -378,13 +479,13 @@ def import_nodes(req: ImportBatchModel, user: str = Depends(get_current_user)):
             
     return {"added": added, "total": len(nodes)}
 
+# 6. KHỞI CHẠY CONTAINER: RESTART TỐI ĐA 3 LẦN CHO MỌI PLATFORM (on-failure:3)
 def run_node_containers(n):
     tun_name = f"tun_{n['id']}"
     app_name = f"app_{n['id']}"
     dev = n["device_name"]
     node_id = n["id"]
     
-    # Sinh machine-id độc lập chống ban Sybil/Batch
     m_dir = f"/opt/bandwidth-manager/data/meta_{node_id}"
     os.makedirs(m_dir, exist_ok=True)
     m_file = f"{m_dir}/machine-id"
@@ -392,17 +493,15 @@ def run_node_containers(n):
         with open(m_file, "w") as f:
             f.write(uuid.uuid4().hex + "\n")
 
-    try:
-        client.containers.get(tun_name).remove(force=True)
-    except Exception:
-        pass
+    try: client.containers.get(tun_name).remove(force=True)
+    except Exception: pass
 
     c_tun = client.containers.run(
         image="ghcr.io/tun2proxy/tun2proxy:v0.8.3",
         name=tun_name,
         hostname=dev,
         detach=True,
-        restart_policy={"Name": "always"},
+        restart_policy={"Name": "on-failure", "MaximumRetryCount": 5},
         cap_add=["NET_ADMIN"],
         devices=["/dev/net/tun:/dev/net/tun"],
         dns=["1.1.1.1", "8.8.8.8"],
@@ -422,12 +521,12 @@ def run_node_containers(n):
     plt = n["platform"].lower()
     auth = n["auth"]
     
-    try:
-        client.containers.get(app_name).remove(force=True)
-    except Exception:
-        pass
+    try: client.containers.get(app_name).remove(force=True)
+    except Exception: pass
     
     vols = {m_file: {"bind": "/etc/machine-id", "mode": "ro"}}
+    # KHỐNG CHẾ CHÍNH SÁCH RESTART TỐI ĐA 3 LẦN CHO MỌI NỀN TẢNG
+    REST_POL = {"Name": "on-failure", "MaximumRetryCount": 3}
     
     if plt == "traffmonetizer":
         data_dir = f"/opt/bandwidth-manager/data/traff_{node_id}"
@@ -439,7 +538,7 @@ def run_node_containers(n):
             hostname=dev,
             detach=True,
             network_mode=net_mode,
-            restart_policy={"Name": "unless-stopped"},
+            restart_policy=REST_POL,
             cpu_shares=512,
             mem_reservation="60m",
             volumes=vols,
@@ -452,7 +551,7 @@ def run_node_containers(n):
             hostname=dev,
             detach=True,
             network_mode=net_mode,
-            restart_policy={"Name": "on-failure", "MaximumRetryCount": 3},
+            restart_policy=REST_POL,
             cpu_shares=512,
             mem_reservation="60m",
             volumes=vols,
@@ -465,7 +564,7 @@ def run_node_containers(n):
             hostname=dev,
             detach=True,
             network_mode=net_mode,
-            restart_policy={"Name": "on-failure", "MaximumRetryCount": 3},
+            restart_policy=REST_POL,
             cpu_shares=512,
             mem_reservation="60m",
             volumes=vols,
@@ -478,7 +577,7 @@ def run_node_containers(n):
             hostname=dev,
             detach=True,
             network_mode=net_mode,
-            restart_policy={"Name": "unless-stopped"},
+            restart_policy=REST_POL,
             cpu_shares=512,
             mem_reservation="100m",
             volumes=vols,
@@ -494,27 +593,26 @@ def run_node_containers(n):
             hostname=dev,
             detach=True,
             network_mode=net_mode,
-            restart_policy={"Name": "unless-stopped"},
+            restart_policy=REST_POL,
             cpu_shares=512,
             mem_reservation="35m",
             volumes=vols,
             environment={"BITPING_EMAIL": auth.get("email", ""), "BITPING_PASSWORD": auth.get("password", "")}
         )
 
+# DỪNG AN TOÀN: APP TRƯỚC, TUN SAU
 def stop_node_containers(nid):
     PID_CACHE.pop(nid, None)
     try:
         a = client.containers.get(f"app_{nid}")
         a.stop(timeout=2)
         a.remove(force=True)
-    except Exception:
-        pass
+    except Exception: pass
     try:
         t = client.containers.get(f"tun_{nid}")
         t.stop(timeout=2)
         t.remove(force=True)
-    except Exception:
-        pass
+    except Exception: pass
 
 @app.get("/api/nodes")
 def get_nodes(user: str = Depends(get_current_user)):
@@ -551,7 +649,6 @@ def check_all_nodes(user: str = Depends(get_current_user)):
         node["ping_ms"] = res["ping_ms"]
         return res["is_live"]
 
-    # Sử dụng ThreadPoolExecutor tối đa 25 luồng (hoàn thành trong 1s, không gây nóng máy)
     with ThreadPoolExecutor(max_workers=25) as executor:
         results = list(executor.map(worker_check, nodes))
 
@@ -612,7 +709,6 @@ def update_node(nid: str, req: EditNodeModel, user: str = Depends(get_current_us
             if req.account_name: n["account_name"] = req.account_name
             if req.provider: n["provider"] = req.provider
             
-            # Kiểm tra ping ngay lập tức cho proxy mới
             res = check_proxy_live_raw(n["endpoint"])
             n["is_live"] = res["is_live"]
             n["ping_ms"] = res["ping_ms"]
@@ -665,3 +761,23 @@ def bulk_delete(req: List[str], user: str = Depends(get_current_user)):
 def index():
     with open("/opt/bandwidth-manager/index.html", "r") as f:
         return f.read()
+
+# 7. CƠ CHẾ KHỞI ĐỘNG TỪ TỪ KHI VPS REBOOT (STAGGERED AUTO-BOOT)
+def staggered_boot_daemon():
+    time.sleep(5) # Chờ 5s cho Docker daemon ổn định
+    nodes = load_nodes()
+    for n in nodes:
+        if n.get("status") == "running":
+            tun_name = f"tun_{n['id']}"
+            try:
+                c = client.containers.get(tun_name)
+                if c.status != "running":
+                    run_node_containers(n)
+                    time.sleep(1.0) # Nghỉ 1s trước khi sang node tiếp theo
+            except Exception:
+                run_node_containers(n)
+                time.sleep(1.0)
+
+@app.on_event("startup")
+def on_startup():
+    threading.Thread(target=staggered_boot_daemon, daemon=True).start()
