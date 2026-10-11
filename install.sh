@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #============================================================================
-#  install.sh - 1-Click All-in-One Engine (Hardware Tuning + Modern Web GUI)
-#  Tích hợp: Tự gỡ APT Lock, Swapfile, ZRAM ZSTD, BBR, Anti-Leak & Web Dashboard
+#  install.sh - 1-Click All-in-One Engine v1.5.0 (High-Concurrency Edition)
+#  Tự động: Kích hoạt ZRAM ZSTD, Swapfile, BBR, LimitNOFILE 1M, Mở Port 3100
 #============================================================================
 set -Eeuo pipefail
 
@@ -12,7 +12,7 @@ PORT=3100
 ADMIN_USER="admin"
 
 echo "=========================================================================="
-echo "    THIẾT LẬP BẢO MẬT WEB DASHBOARD (BANDWIDTH FLEET MANAGER PRO)"
+echo "    BẢO MẬT WEB DASHBOARD QUẢN TRỊ (BANDWIDTH FLEET MANAGER PRO v1.5.0)"
 echo "=========================================================================="
 ADMIN_PASS=""
 while true; do
@@ -32,13 +32,18 @@ while true; do
   fi
 done
 
-echo -e "\n[1/6] Giải phóng khóa APT Lock hệ thống & Tối ưu phần cứng..."
+echo -e "\n[1/6] Giải phóng khóa APT & Cài đặt gói Kernel Modules..."
 systemctl stop apt-daily.service apt-daily-upgrade.service unattended-upgrades.service 2>/dev/null || true
 systemctl disable apt-daily.service apt-daily-upgrade.service unattended-upgrades.service 2>/dev/null || true
 pkill -9 -f "apt|dpkg|unattended-upgrades" 2>/dev/null || true
 rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock* /var/cache/apt/archives/lock* 2>/dev/null || true
 dpkg --configure -a 2>/dev/null || true
 
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y -qq
+apt-get install -y -qq --no-install-recommends linux-modules-extra-"$(uname -r)" util-linux e2fsprogs curl jq python3 python3-pip python3-venv 2>/dev/null || true
+
+echo "[2/6] Nhận diện phần cứng & Cấu hình Swapfile tối ưu..."
 MEM_MB=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)
 CPU=$(nproc 2>/dev/null || echo 1)
 DISK_TOTAL_MB=$(df -m / | awk 'NR==2 {print $2}')
@@ -65,7 +70,7 @@ if (( CURR_DISK_SWAP_MB != TARGET_SWAP_MB )); then
   fi
 fi
 
-echo "[2/6] Kích hoạt ZRAM ZSTD nén RAM (Ưu tiên 10) & Kernel Modules..."
+echo "[3/6] Kích hoạt ZRAM ZSTD nén RAM (Ưu tiên 10)..."
 mkdir -p /etc/modules-load.d
 cat > /etc/modules-load.d/fleet-modules.conf <<'EOF_MODS'
 zram
@@ -87,41 +92,40 @@ if [[ ! -c /dev/net/tun ]]; then
   chmod 600 /dev/net/tun 2>/dev/null || true
 fi
 
-cat > /usr/local/bin/fleet-init-zram.sh <<'EOF_ZRAM_SH'
-#!/usr/bin/env bash
-MEM_MB=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)
+# Thiết lập kích thước ZRAM bằng dung lượng RAM vật lý
 ZRAM_BYTES=$(( MEM_MB * 1024 * 1024 ))
-modprobe zram num_devices=1 2>/dev/null || true
-if [[ ! -b /dev/zram0 ]] && [[ -f /sys/class/zram-control/hot_add ]]; then
-  cat /sys/class/zram-control/hot_add >/dev/null 2>&1 || true
-fi
 if [[ -b /dev/zram0 ]]; then
   if ! swapon --show 2>/dev/null | grep -q "/dev/zram0"; then
-    if grep -q "zstd" /sys/block/zram0/comp_algorithm 2>/dev/null; then
-      echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null || true
-    fi
+    echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null || echo lz4 > /sys/block/zram0/comp_algorithm 2>/dev/null || true
     echo "$ZRAM_BYTES" > /sys/block/zram0/disksize 2>/dev/null || true
-    mkswap /dev/zram0 >/dev/null 2>&1
+    mkswap /dev/zram0 >/dev/null 2>&1 || true
     swapon -p 10 /dev/zram0 2>/dev/null || true
   fi
 fi
-EOF_ZRAM_SH
-chmod +x /usr/local/bin/fleet-init-zram.sh
-/usr/local/bin/fleet-init-zram.sh
 
+# KSM (Kernel Samepage Merging)
 if [[ -f /sys/kernel/mm/ksm/run ]]; then
   echo 1 > /sys/kernel/mm/ksm/run 2>/dev/null || true
   echo 1000 > /sys/kernel/mm/ksm/sleep_millisecs 2>/dev/null || true
   echo 300 > /sys/kernel/mm/ksm/pages_to_scan 2>/dev/null || true
 fi
 
+# RPS (Receive Packet Steering)
 RPS_MASK=$(printf "%x" $(( (1 << CPU) - 1 )) 2>/dev/null || echo "f")
 for f in /sys/class/net/*/queues/rx-*/rps_cpus; do
   echo "$RPS_MASK" > "$f" 2>/dev/null || true
 done
 
-echo "[3/6] Tối ưu hóa Kernel Sysctl & Chống rò rỉ IPv6..."
+echo "[4/6] Tối ưu hóa Kernel Sysctl & Giới hạn File Descriptors..."
 ulimit -n 1048576 2>/dev/null || true
+
+mkdir -p /etc/security/limits.d
+cat > /etc/security/limits.d/99-fleet-nofile.conf << 'EOF_LIMITS'
+* soft nofile 1048576
+* hard nofile 1048576
+root soft nofile 1048576
+root hard nofile 1048576
+EOF_LIMITS
 
 cat << 'EOF_GAI' > /etc/gai.conf
 precedence ::ffff:0:0/96  100
@@ -162,7 +166,7 @@ net.netfilter.nf_conntrack_tcp_timeout_fin_wait = 30
 EOF_SYSCTL
 sysctl --system >/dev/null 2>&1 || true
 
-echo "[4/6] Cài đặt Docker & Giới hạn dung lượng Log..."
+echo "[5/6] Cài đặt Docker & Mở cổng Firewall tường lửa (${PORT})..."
 if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
 fi
@@ -175,23 +179,19 @@ cat > /etc/docker/daemon.json << 'EOF_DOCKER'
   "live-restore": true,
   "userland-proxy": false,
   "default-ulimits": {
-    "nofile": { "Name": "nofile", "Hard": 65536, "Soft": 65536 }
+    "nofile": { "Name": "nofile", "Hard": 1048576, "Soft": 1048576 }
   }
 }
 EOF_DOCKER
 systemctl daemon-reload && systemctl reload docker 2>/dev/null || systemctl restart docker
 
-echo "[5/6] Mở cổng Firewall tường lửa (${PORT})..."
 iptables -I INPUT -p tcp --dport ${PORT} -j ACCEPT 2>/dev/null || true
 iptables -P FORWARD ACCEPT 2>/dev/null || true
 if command -v ufw >/dev/null 2>&1; then
   ufw allow ${PORT}/tcp >/dev/null 2>&1 || true
 fi
 
-echo "[6/6] Cài đặt Backend Python & Môi trường chạy ngầm..."
-apt-get update -y -qq
-apt-get install -y -qq python3 python3-pip python3-venv curl jq
-
+echo "[6/6] Cài đặt Backend Python & Tạo Systemd Daemon chuẩn 1M nofile..."
 mkdir -p "$APP_DIR/data"
 python3 -m venv "$APP_DIR/venv"
 "$APP_DIR/venv/bin/pip" install --upgrade pip -q
@@ -213,7 +213,7 @@ fi
 
 cat << EOF_SERVICE > /etc/systemd/system/bandwidth-manager.service
 [Unit]
-Description=Bandwidth Fleet Manager Pro Engine
+Description=Bandwidth Fleet Manager Pro Engine v1.5.0
 After=network.target docker.service
 Wants=docker.service
 
@@ -222,6 +222,8 @@ Type=simple
 User=root
 WorkingDirectory=${APP_DIR}
 EnvironmentFile=${APP_DIR}/.env
+LimitNOFILE=1048576
+LimitNPROC=524288
 ExecStart=${APP_DIR}/venv/bin/uvicorn app:app --host 0.0.0.0 --port ${PORT}
 Restart=always
 RestartSec=5
@@ -238,9 +240,9 @@ PRIMARY_IFACE=$(ip -4 route show default 2>/dev/null | awk '{print $5}' | head -
 PUB_IP=$(curl -s4 -m 3 --interface "$PRIMARY_IFACE" https://api.ipify.org 2>/dev/null || curl -s4 -m 3 https://icanhazip.com 2>/dev/null || echo "IP_VPS")
 
 echo "=========================================================================="
-echo " [OK] ĐÃ THIẾT LẬP THÀNH CÔNG HẠ TẦNG VPS & BANDWIDTH FLEET MANAGER!"
+echo " [OK] ĐÃ THIẾT LẬP THÀNH CÔNG HẠ TẦNG VPS & BANDWIDTH FLEET MANAGER v1.5.0!"
 echo " 👉 Địa chỉ Web Dashboard : http://${PUB_IP}:${PORT}"
 echo " 👉 Tài khoản đăng nhập   : ${ADMIN_USER}"
 echo " 👉 Mật khẩu bảo mật      : (Mật khẩu riêng bạn vừa nhập)"
-echo " 👉 Đã bật: ZRAM ZSTD (Ưu tiên 10), Swapfile, BBR, KSM, Anti-Leak."
+echo " 👉 File Descriptors (nofile) đã được gán 1.048.576 cho toàn hệ thống."
 echo "=========================================================================="

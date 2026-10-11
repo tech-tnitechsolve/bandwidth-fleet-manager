@@ -20,16 +20,14 @@ Hệ thống Web GUI quản trị hạm đội Proxy & Node chia sẻ băng thô
 
 Chạy lệnh duy nhất sau trên VPS Ubuntu (22.04 / 24.04) hoặc Debian (11 / 12):
 
-```bash
+```
 sudo rm -rf /opt/bandwidth-manager && sudo git clone https://github.com/tech-tnitechsolve/bandwidth-fleet-manager.git /opt/bandwidth-manager && cd /opt/bandwidth-manager && sudo bash install.sh
+```
 
 ---
 ## 🔑 Quên Mật Khẩu Đăng Nhập?
 
 Nếu quên mật khẩu Web Dashboard, SSH vào VPS và chạy lệnh:
-```bash
+```
 sudo bash /opt/bandwidth-manager/reset_password.sh
 ```
-```
-
----
