@@ -5,19 +5,21 @@ import json
 import uuid
 import hashlib
 import time
-from fastapi import FastAPI, HTTPException, Depends, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import FastAPI, HTTPException, Depends, status, Header
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
 
 app = FastAPI(title="Bandwidth Fleet Manager Pro Engine")
-security = HTTPBasic()
 client = docker.from_env()
 
-DATA_FILE = "/opt/bandwidth-manager/data/nodes.json"
+DATA_DIR = "/opt/bandwidth-manager/data"
+NODES_FILE = f"{DATA_DIR}/nodes.json"
+ACCOUNTS_FILE = f"{DATA_DIR}/accounts.json"
+
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "")
+JWT_SECRET = os.environ.get("JWT_SECRET", "super-secret-key-123")
 
 last_net_time = 0.0
 last_rx_bytes = 0
@@ -25,25 +27,42 @@ last_tx_bytes = 0
 
 PID_CACHE = {}
 
-def load_nodes():
-    if not os.path.exists(DATA_FILE):
+def load_json(path):
+    if not os.path.exists(path):
         return []
-    with open(DATA_FILE, "r") as f:
-        try: return json.load(f)
-        except: return []
+    with open(path, "r") as f:
+        try:
+            return json.load(f)
+        except Exception:
+            return []
 
-def save_nodes(nodes):
-    with open(DATA_FILE, "w") as f:
-        json.dump(nodes, f, indent=2)
+def save_json(path, data):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
 
-def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
-    if credentials.username != ADMIN_USER or credentials.password != ADMIN_PASS:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Tài khoản hoặc mật khẩu không chính xác",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-    return credentials.username
+def generate_token(username: str) -> str:
+    raw = f"{username}:{ADMIN_PASS}:{JWT_SECRET}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+def get_current_user(authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Chưa đăng nhập")
+    token = authorization.split(" ")[1]
+    expected = generate_token(ADMIN_USER)
+    if token != expected:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Phiên đăng nhập hết hạn")
+    return ADMIN_USER
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@app.post("/api/auth/login")
+def login(req: LoginRequest):
+    if req.username == ADMIN_USER and req.password == ADMIN_PASS:
+        token = generate_token(req.username)
+        return {"success": True, "token": token, "username": req.username}
+    raise HTTPException(status_code=400, detail="Tài khoản hoặc mật khẩu không chính xác")
 
 # 1. ĐO TẢI MẠNG VẬT LÝ VPS (THROUGHPUT MBPS & PACKET DROPS)
 def get_vps_network_load():
@@ -54,10 +73,11 @@ def get_vps_network_load():
         with open("/proc/net/route", "r") as f:
             for line in f.readlines()[1:]:
                 fields = line.strip().split()
-                if fields[1] == "00000000":
+                if len(fields) >= 2 and fields[1] == "00000000":
                     default_iface = fields[0]
                     break
-    except: pass
+    except Exception:
+        pass
 
     current_rx = 0
     current_tx = 0
@@ -74,7 +94,8 @@ def get_vps_network_load():
                     current_tx = int(p[9])
                     tx_drops = int(p[12])
                     break
-    except: pass
+    except Exception:
+        pass
 
     now = time.time()
     dt = now - last_net_time if last_net_time > 0 else 1.0
@@ -98,7 +119,8 @@ def get_vps_network_load():
             conntrack_count = int(f.read().strip())
         with open("/proc/sys/net/netfilter/nf_conntrack_max", "r") as f:
             conntrack_max = int(f.read().strip())
-    except: pass
+    except Exception:
+        pass
 
     conntrack_percent = round((conntrack_count / conntrack_max) * 100, 1) if conntrack_max > 0 else 0
     is_choking = (rx_drops > 100 or tx_drops > 100 or conntrack_percent > 85)
@@ -126,9 +148,9 @@ def get_node_network_stats(node_id):
             if c.status != "running":
                 PID_CACHE.pop(node_id, None)
                 return {"traffic_mb": 0.0, "traffic_gb": 0.0, "sockets": 0, "status": "stopped"}
-            pid = c.attrs['State']['Pid']
+            pid = c.attrs["State"]["Pid"]
             PID_CACHE[node_id] = pid
-        except:
+        except Exception:
             PID_CACHE.pop(node_id, None)
             return {"traffic_mb": 0.0, "traffic_gb": 0.0, "sockets": 0, "status": "stopped"}
 
@@ -147,7 +169,8 @@ def get_node_network_stats(node_id):
                         p = line.split()
                         rx_bytes = int(p[1])
                         tx_bytes = int(p[9])
-        except: pass
+        except Exception:
+            pass
                     
     total_bytes = rx_bytes + tx_bytes
     traffic_mb = round(total_bytes / 1048576, 2)
@@ -160,9 +183,10 @@ def get_node_network_stats(node_id):
                 with open(proto, "r") as f:
                     for l in f.readlines()[1:]:
                         parts = l.strip().split()
-                        if len(parts) >= 4 and parts[3] == "01":
+                        if len(parts) >= 4 and parts[3] == "01": # TCP_ESTABLISHED
                             sockets += 1
-            except: pass
+            except Exception:
+                pass
                         
     return {
         "traffic_mb": traffic_mb,
@@ -171,8 +195,8 @@ def get_node_network_stats(node_id):
         "status": "running"
     }
 
-@app.get("/api/system", dependencies=[Depends(authenticate)])
-def get_system_stats():
+@app.get("/api/system")
+def get_system_stats(user: str = Depends(get_current_user)):
     mem = psutil.virtual_memory()
     swap = psutil.swap_memory()
     disk = psutil.disk_usage("/")
@@ -200,6 +224,35 @@ def get_system_stats():
         "network": get_vps_network_load()
     }
 
+class AccountModel(BaseModel):
+    id: Optional[str] = None
+    account_name: str
+    platform: str
+    token: Optional[str] = ""
+    email: Optional[str] = ""
+    password: Optional[str] = ""
+
+@app.get("/api/accounts")
+def get_accounts(user: str = Depends(get_current_user)):
+    return load_json(ACCOUNTS_FILE)
+
+@app.post("/api/accounts")
+def create_account(req: AccountModel, user: str = Depends(get_current_user)):
+    accounts = load_json(ACCOUNTS_FILE)
+    acc_id = str(uuid.uuid4())[:8]
+    data = req.dict()
+    data["id"] = acc_id
+    accounts.append(data)
+    save_json(ACCOUNTS_FILE, accounts)
+    return {"success": True, "account": data}
+
+@app.delete("/api/accounts/{acc_id}")
+def delete_account(acc_id: str, user: str = Depends(get_current_user)):
+    accounts = load_json(ACCOUNTS_FILE)
+    accounts = [a for a in accounts if a["id"] != acc_id]
+    save_json(ACCOUNTS_FILE, accounts)
+    return {"success": True}
+
 class ImportBatchModel(BaseModel):
     account_name: str
     platform: str
@@ -211,7 +264,7 @@ class ImportBatchModel(BaseModel):
     password: Optional[str] = ""
 
 def parse_proxy_line(line: str, prefix: str, current_idx: int):
-    line = line.replace('\r', '').strip()
+    line = line.replace("\r", "").strip()
     if not line or line.startswith("#"):
         return None
     
@@ -251,7 +304,8 @@ def parse_proxy_line(line: str, prefix: str, current_idx: int):
         else:
             device_name = hashlib.md5(f"{ip_port}_{auth}".encode()).hexdigest()[:8]
             
-    full_url = f"{proto}://{auth + '@' if auth else ''}{ip_port}"
+    auth_str = f"{auth}@" if auth else ""
+    full_url = f"{proto}://{auth_str}{ip_port}"
     return {
         "protocol": proto,
         "endpoint": ip_port,
@@ -259,8 +313,8 @@ def parse_proxy_line(line: str, prefix: str, current_idx: int):
         "device_name": device_name
     }
 
-@app.post("/api/nodes/import", dependencies=[Depends(authenticate)])
-def import_nodes(req: ImportBatchModel):
+@app.post("/api/nodes/import")
+def import_nodes(req: ImportBatchModel, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     lines = req.proxies_raw.strip().split("\n")
     start_idx = len(nodes) + 1
@@ -289,16 +343,29 @@ def import_nodes(req: ImportBatchModel):
         nodes.append(node)
         added += 1
     save_nodes(nodes)
+    
+    # Tự động lưu tài khoản vào sổ để tái sử dụng
+    if req.account_name:
+        accounts = load_json(ACCOUNTS_FILE)
+        if not any(a["account_name"] == req.account_name.strip() and a["platform"] == req.platform.strip() for a in accounts):
+            accounts.append({
+                "id": str(uuid.uuid4())[:8],
+                "account_name": req.account_name.strip(),
+                "platform": req.platform.strip(),
+                "token": req.token.strip() if req.token else "",
+                "email": req.email.strip() if req.email else "",
+                "password": req.password.strip() if req.password else ""
+            })
+            save_json(ACCOUNTS_FILE, accounts)
+            
     return {"added": added, "total": len(nodes)}
 
-# KHỞI CHẠY CONTAINER: BẢO VỆ DANH TÍNH & THAM SỐ ARRAY AN TOÀN
 def run_node_containers(n):
     tun_name = f"tun_{n['id']}"
     app_name = f"app_{n['id']}"
     dev = n["device_name"]
     node_id = n["id"]
     
-    # 1. Tạo file machine-id độc lập chống clone detection
     m_dir = f"/opt/bandwidth-manager/data/meta_{node_id}"
     os.makedirs(m_dir, exist_ok=True)
     m_file = f"{m_dir}/machine-id"
@@ -306,8 +373,11 @@ def run_node_containers(n):
         with open(m_file, "w") as f:
             f.write(uuid.uuid4().hex + "\n")
 
-    # 2. Khởi chạy TUN Container
-    try: client.containers.get(tun_name).remove(force=True); except: pass
+    try:
+        client.containers.get(tun_name).remove(force=True)
+    except Exception:
+        pass
+
     c_tun = client.containers.run(
         image="ghcr.io/tun2proxy/tun2proxy:v0.8.3",
         name=tun_name,
@@ -323,20 +393,20 @@ def run_node_containers(n):
         },
         cpu_shares=512,
         mem_reservation="20m",
-        command=["--dns", "virtual", "--proxy", n['proxy_url'], "--verbosity", "off"]
+        command=["--dns", "virtual", "--proxy", n["proxy_url"], "--verbosity", "off"]
     )
     
-    PID_CACHE[node_id] = c_tun.attrs['State']['Pid'] if 'State' in c_tun.attrs else 0
-
-    # Độ trễ 1.5s bảo vệ đường truyền bắt tay xong mới bật worker
+    PID_CACHE[node_id] = c_tun.attrs["State"]["Pid"] if "State" in c_tun.attrs else 0
     time.sleep(1.5)
     
-    # 3. Khởi chạy Worker Platform
     net_mode = f"container:{tun_name}"
     plt = n["platform"].lower()
     auth = n["auth"]
     
-    try: client.containers.get(app_name).remove(force=True); except: pass
+    try:
+        client.containers.get(app_name).remove(force=True)
+    except Exception:
+        pass
     
     vols = {m_file: {"bind": "/etc/machine-id", "mode": "ro"}}
     
@@ -354,7 +424,7 @@ def run_node_containers(n):
             cpu_shares=512,
             mem_reservation="60m",
             volumes=vols,
-            command=["start", "accept", "--device-name", dev, "--token", auth.get('token', '')]
+            command=["start", "accept", "--device-name", dev, "--token", auth.get("token", "")]
         )
     elif plt == "honeygain":
         client.containers.run(
@@ -367,7 +437,7 @@ def run_node_containers(n):
             cpu_shares=512,
             mem_reservation="60m",
             volumes=vols,
-            command=["-tou-accept", "-email", auth.get('email', ''), "-pass", auth.get('password', ''), "-device", dev]
+            command=["-tou-accept", "-email", auth.get("email", ""), "-pass", auth.get("password", ""), "-device", dev]
         )
     elif plt == "pawns":
         client.containers.run(
@@ -412,22 +482,23 @@ def run_node_containers(n):
             environment={"BITPING_EMAIL": auth.get("email", ""), "BITPING_PASSWORD": auth.get("password", "")}
         )
 
-# DỪNG AN TOÀN: APP TRƯỚC, TUN SAU
 def stop_node_containers(nid):
     PID_CACHE.pop(nid, None)
     try:
         a = client.containers.get(f"app_{nid}")
         a.stop(timeout=2)
         a.remove(force=True)
-    except: pass
+    except Exception:
+        pass
     try:
         t = client.containers.get(f"tun_{nid}")
         t.stop(timeout=2)
         t.remove(force=True)
-    except: pass
+    except Exception:
+        pass
 
-@app.get("/api/nodes", dependencies=[Depends(authenticate)])
-def get_nodes():
+@app.get("/api/nodes")
+def get_nodes(user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
         metrics = get_node_network_stats(n["id"])
@@ -437,8 +508,8 @@ def get_nodes():
         n["status"] = metrics["status"]
     return nodes
 
-@app.post("/api/nodes/{nid}/start", dependencies=[Depends(authenticate)])
-def start_node(nid: str):
+@app.post("/api/nodes/{nid}/start")
+def start_node(nid: str, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
         if n["id"] == nid:
@@ -448,8 +519,8 @@ def start_node(nid: str):
             return {"status": "started"}
     raise HTTPException(status_code=404, detail="Node không tồn tại")
 
-@app.post("/api/nodes/{nid}/stop", dependencies=[Depends(authenticate)])
-def stop_node(nid: str):
+@app.post("/api/nodes/{nid}/stop")
+def stop_node(nid: str, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
         if n["id"] == nid:
@@ -465,8 +536,8 @@ class EditNodeModel(BaseModel):
     account_name: Optional[str] = None
     provider: Optional[str] = None
 
-@app.put("/api/nodes/{nid}", dependencies=[Depends(authenticate)])
-def update_node(nid: str, req: EditNodeModel):
+@app.put("/api/nodes/{nid}")
+def update_node(nid: str, req: EditNodeModel, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
         if n["id"] == nid:
@@ -487,16 +558,16 @@ def update_node(nid: str, req: EditNodeModel):
             return {"status": "updated"}
     raise HTTPException(status_code=404, detail="Node không tồn tại")
 
-@app.delete("/api/nodes/{nid}", dependencies=[Depends(authenticate)])
-def delete_node(nid: str):
+@app.delete("/api/nodes/{nid}")
+def delete_node(nid: str, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     stop_node_containers(nid)
     nodes = [n for n in nodes if n["id"] != nid]
     save_nodes(nodes)
     return {"status": "deleted"}
 
-@app.post("/api/nodes/bulk/start", dependencies=[Depends(authenticate)])
-def bulk_start(req: List[str]):
+@app.post("/api/nodes/bulk/start")
+def bulk_start(req: List[str], user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
         if n["id"] in req:
@@ -505,8 +576,8 @@ def bulk_start(req: List[str]):
     save_nodes(nodes)
     return {"status": "bulk_started"}
 
-@app.post("/api/nodes/bulk/stop", dependencies=[Depends(authenticate)])
-def bulk_stop(req: List[str]):
+@app.post("/api/nodes/bulk/stop")
+def bulk_stop(req: List[str], user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
         if n["id"] in req:

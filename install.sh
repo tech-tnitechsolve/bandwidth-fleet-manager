@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #============================================================================
-#  install.sh - 1-Click All-in-One Engine (Hardware Tuning + Fleet Manager)
-#  Tích hợp: Swapfile, ZRAM ZSTD, BBR, KSM, RPS, Anti-Leak & Web Dashboard
+#  install.sh - 1-Click All-in-One Engine (Hardware Tuning + Modern Web GUI)
+#  Tích hợp: Tự gỡ APT Lock, Swapfile, ZRAM ZSTD, BBR, Anti-Leak & Web Dashboard
 #============================================================================
 set -Eeuo pipefail
 
@@ -12,14 +12,14 @@ PORT=3100
 ADMIN_USER="admin"
 
 echo "=========================================================================="
-echo "    BẢO MẬT WEB DASHBOARD QUẢN TRỊ (BANDWIDTH FLEET MANAGER PRO)"
+echo "    THIẾT LẬP BẢO MẬT WEB DASHBOARD (BANDWIDTH FLEET MANAGER PRO)"
 echo "=========================================================================="
 ADMIN_PASS=""
 while true; do
   read -s -p ">> Nhập MẬT KHẨU quản trị mới cho tài khoản 'admin': " P1
   echo ""
   if [[ -z "$P1" ]] || [[ ${#P1} -lt 6 ]]; then
-    echo "[!] Mật khẩu không được để trống và phải có ít nhất 6 ký tự. Nhập lại!"
+    echo "[!] Mật khẩu không được để trống và tối thiểu 6 ký tự. Nhập lại!"
     continue
   fi
   read -s -p ">> Xác nhận lại mật khẩu: " P2
@@ -32,7 +32,13 @@ while true; do
   fi
 done
 
-echo -e "\n[1/6] Nhận diện phần cứng & Cấu hình Swapfile tối ưu..."
+echo -e "\n[1/6] Giải phóng khóa APT Lock hệ thống & Tối ưu phần cứng..."
+systemctl stop apt-daily.service apt-daily-upgrade.service unattended-upgrades.service 2>/dev/null || true
+systemctl disable apt-daily.service apt-daily-upgrade.service unattended-upgrades.service 2>/dev/null || true
+pkill -9 -f "apt|dpkg|unattended-upgrades" 2>/dev/null || true
+rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock* /var/cache/apt/archives/lock* 2>/dev/null || true
+dpkg --configure -a 2>/dev/null || true
+
 MEM_MB=$(awk '/MemTotal/{print int($2/1024)}' /proc/meminfo)
 CPU=$(nproc 2>/dev/null || echo 1)
 DISK_TOTAL_MB=$(df -m / | awk 'NR==2 {print $2}')
@@ -156,7 +162,7 @@ net.netfilter.nf_conntrack_tcp_timeout_fin_wait = 30
 EOF_SYSCTL
 sysctl --system >/dev/null 2>&1 || true
 
-echo "[4/6] Cài đặt Docker & Khống chế Log tối đa 2MB..."
+echo "[4/6] Cài đặt Docker & Giới hạn dung lượng Log..."
 if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
 fi
@@ -182,7 +188,7 @@ if command -v ufw >/dev/null 2>&1; then
   ufw allow ${PORT}/tcp >/dev/null 2>&1 || true
 fi
 
-echo "[6/6] Cài đặt Backend Python & Tạo Systemd Daemon..."
+echo "[6/6] Cài đặt Backend Python & Môi trường chạy ngầm..."
 apt-get update -y -qq
 apt-get install -y -qq python3 python3-pip python3-venv curl jq
 
@@ -191,16 +197,18 @@ python3 -m venv "$APP_DIR/venv"
 "$APP_DIR/venv/bin/pip" install --upgrade pip -q
 "$APP_DIR/venv/bin/pip" install fastapi uvicorn psutil docker jinja2 pydantic -q
 
+JWT_SECRET=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 32)
 cat << EOF_ENV > "$APP_DIR/.env"
 ADMIN_USER=${ADMIN_USER}
 ADMIN_PASS=${ADMIN_PASS}
+JWT_SECRET=${JWT_SECRET}
 EOF_ENV
 chmod 600 "$APP_DIR/.env"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ -f "$SCRIPT_DIR/app.py" ]]; then
-  cp "$SCRIPT_DIR/app.py" "$APP_DIR/app.py"
-  cp "$SCRIPT_DIR/index.html" "$APP_DIR/index.html"
+if [[ "$SCRIPT_DIR" != "$APP_DIR" ]] && [[ -f "$SCRIPT_DIR/app.py" ]]; then
+  cp -f "$SCRIPT_DIR/app.py" "$APP_DIR/app.py"
+  cp -f "$SCRIPT_DIR/index.html" "$APP_DIR/index.html"
 fi
 
 cat << EOF_SERVICE > /etc/systemd/system/bandwidth-manager.service
