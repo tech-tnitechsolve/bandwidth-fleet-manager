@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bandwidth Fleet Manager — Pro Dashboard v1.3.0</title>
+  <title>Bandwidth Fleet Manager — Pro Dashboard v1.4.0</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -75,10 +75,10 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-base font-extrabold text-white">Bandwidth Fleet Manager</h1>
-            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-800">{{ sys.version }} ({{ sys.commit }})</span>
+            <h1 class="text-base font-extrabold text-white">{{ sys.vps_alias || sys.hostname }}</h1>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-950 text-indigo-300 border border-indigo-800">{{ sys.version }}</span>
           </div>
-          <span class="text-xs text-gray-400 font-mono">Host: {{ sys.hostname || 'VPS Node' }}</span>
+          <span class="text-xs text-gray-400 font-mono">Host: {{ sys.hostname }}</span>
         </div>
       </div>
 
@@ -93,30 +93,32 @@
         <a href="#accounts" @click="currentTab = 'accounts'" :class="currentTab === 'accounts' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg transition">
           <i class="fa fa-address-book mr-1.5"></i> Sổ Tài Khoản
         </a>
+        <a href="#settings" @click="currentTab = 'settings'" :class="currentTab === 'settings' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg transition">
+          <i class="fa fa-sliders-h mr-1.5"></i> Cài Đặt & Audit
+        </a>
       </nav>
 
       <div class="flex items-center gap-2.5">
         <button @click="checkOtaUpdate" :disabled="otaChecking" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-xs font-semibold rounded-xl text-gray-200 border border-gray-700 flex items-center gap-1.5">
           <i :class="otaChecking ? 'fa fa-spinner fa-spin' : 'fa fa-cloud-download-alt'"></i>
-          <span>Kiểm Tra Cập Nhật</span>
+          <span>Check Update</span>
         </button>
         <button @click="showImportModal = true" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-sm font-bold rounded-xl text-white shadow-lg transition">
           <i class="fa fa-plus mr-1.5"></i> Nhập Batch Proxy
         </button>
         <button @click="handleLogout" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-medium rounded-xl text-gray-300 transition">
-          <i class="fa fa-sign-out-alt mr-1"></i>
+          <i class="fa fa-sign-out-alt"></i>
         </button>
       </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-6 space-y-6 pb-12">
 
-      <!-- ==================== TAB 1: TỔNG QUAN (CHI TIẾT PHẦN CỨNG CHUẨN WIPTER) ==================== -->
+      <!-- ==================== TAB 1: TỔNG QUAN PHẦN CỨNG & BĂNG THÔNG ==================== -->
       <section v-if="currentTab === 'overview'" class="space-y-6">
         
-        <!-- ROW 1: SỨC CHỨA & SỨC KHỎE HỆ THỐNG -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <!-- CARD CHỈ SỐ ỔN ĐỊNH (HEALTH STATUS) -->
+          <!-- CARD ĐỘ ỔN ĐỊNH HỆ THỐNG -->
           <div class="card-panel p-5 rounded-2xl border-l-4" :class="sys.health_score >= 80 ? 'border-emerald-500' : 'border-amber-500'">
             <div class="flex justify-between items-center text-xs text-gray-400 font-bold uppercase">
               <span>ĐỘ ỔN ĐỊNH MÁY CHỦ</span>
@@ -163,7 +165,7 @@
             <div class="text-xs text-emerald-400 mt-1 font-mono">Trống: {{ sys.ram_free_mb }} MB</div>
           </div>
 
-          <!-- CARD SWAP (HIỂN THỊ RÕ RÀNG THEO YÊU CẦU) -->
+          <!-- CARD SWAP CHI TIẾT -->
           <div class="card-panel p-5 rounded-2xl">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold">BỘ NHỚ SWAP / ZRAM</span>
@@ -177,9 +179,8 @@
           </div>
         </div>
 
-        <!-- ROW 2: Ổ ĐĨA & CPU CORES -->
+        <!-- ROW 2: Ổ ĐĨA & CPU -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- CARD Ổ ĐĨA CHI TIẾT -->
           <div class="card-panel p-5 rounded-2xl space-y-3">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold uppercase">Ổ ĐĨA HỆ THỐNG (ROOT /)</span>
@@ -194,7 +195,6 @@
             </div>
           </div>
 
-          <!-- CARD CPU CHI TIẾT -->
           <div class="card-panel p-5 rounded-2xl space-y-3">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold uppercase">CPU SỬ DỤNG ({{ sys.cpu_cores }} vCPU)</span>
@@ -235,9 +235,8 @@
         </div>
       </section>
 
-      <!-- ==================== TAB 2: QUẢN LÝ TỪNG NODE (FLEET NODES) ==================== -->
+      <!-- ==================== TAB 2: QUẢN LÝ TỪNG NODE (FLEET NODES - CÓ PHÂN TRANG) ==================== -->
       <section v-if="currentTab === 'nodes'" class="space-y-4">
-        <!-- BẢNG ĐIỀU KHIỂN & NÚT CHỨC NĂNG -->
         <div class="card-panel p-4 rounded-2xl space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-4">
             <div class="flex flex-wrap items-center gap-2.5">
@@ -261,8 +260,21 @@
                 <i class="fa fa-sync-alt"></i>
               </button>
             </div>
-            <div class="text-xs text-gray-400">
-              Đang hiển thị: <b class="text-white">{{ filteredNodes.length }}</b> / {{ nodes.length }} nodes
+            
+            <!-- PHÂN TRANG (PAGINATION CONTROLS CHỐNG LAG) -->
+            <div class="flex items-center gap-3 text-xs text-gray-400">
+              <span>Hiển thị:</span>
+              <select v-model="pageSize" class="bg-gray-900 border border-gray-700 rounded-lg p-1 text-white outline-none">
+                <option :value="25">25 node</option>
+                <option :value="50">50 node</option>
+                <option :value="100">100 node</option>
+                <option :value="9999">Tất cả</option>
+              </select>
+              <span>Trang <b>{{ currentPage }}</b> / {{ totalPages }}</span>
+              <div class="flex gap-1">
+                <button @click="currentPage--" :disabled="currentPage <= 1" class="px-2 py-1 bg-gray-800 rounded disabled:opacity-30"><i class="fa fa-chevron-left"></i></button>
+                <button @click="currentPage++" :disabled="currentPage >= totalPages" class="px-2 py-1 bg-gray-800 rounded disabled:opacity-30"><i class="fa fa-chevron-right"></i></button>
+              </div>
             </div>
           </div>
 
@@ -300,7 +312,7 @@
           </div>
         </div>
 
-        <!-- BẢNG DANH SÁCH NODES (CÓ NÚT XEM LOG TRỰC TIẾP) -->
+        <!-- BẢNG DANH SÁCH NODES -->
         <div class="card-panel rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
@@ -320,7 +332,7 @@
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-800/60 font-sans">
-                <tr v-for="n in filteredNodes" :key="n.id" class="hover:bg-gray-800/30 transition">
+                <tr v-for="n in paginatedNodes" :key="n.id" class="hover:bg-gray-800/30 transition">
                   <td class="p-3.5"><input type="checkbox" :value="n.id" v-model="selectedIds" class="rounded bg-gray-800 border-gray-700"></td>
                   <td class="p-3.5 font-mono font-bold text-amber-300 text-xs">{{ n.device_name }}</td>
                   <td class="p-3.5 font-bold text-indigo-300">{{ n.account_name }}</td>
@@ -362,15 +374,15 @@
                     <span v-else class="text-gray-500 font-medium">STOPPED</span>
                   </td>
                   <td class="p-3.5 text-right space-x-1">
-                    <button v-if="n.status !== 'running'" @click="startNode(n.id)" class="px-2 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-lg text-xs" title="Bật Node"><i class="fa fa-play"></i></button>
-                    <button v-else @click="stopNode(n.id)" class="px-2 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg text-xs" title="Tắt Node"><i class="fa fa-stop"></i></button>
+                    <button v-if="n.status !== 'running'" @click="startNode(n.id)" class="px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-lg text-xs" title="Bật Node"><i class="fa fa-play"></i></button>
+                    <button v-else @click="stopNode(n.id)" class="px-2.5 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg text-xs" title="Tắt Node"><i class="fa fa-stop"></i></button>
                     <button @click="openLogsModal(n)" class="px-2 py-1 bg-indigo-900/60 hover:bg-indigo-700 text-indigo-300 hover:text-white rounded-lg text-xs" title="Xem Log Container"><i class="fa fa-terminal"></i></button>
                     <button @click="openEditModal(n)" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs" title="Sửa Proxy"><i class="fa fa-edit"></i></button>
                     <button @click="deleteNode(n.id)" class="px-2 py-1 bg-rose-900/60 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs" title="Xóa Node"><i class="fa fa-trash"></i></button>
                   </td>
                 </tr>
                 <tr v-if="filteredNodes.length === 0">
-                  <td colspan="11" class="p-10 text-center text-gray-500 text-sm">Chưa có node nào phù hợp. Bấm "Nhập Batch Proxy" để thêm node!</td>
+                  <td colspan="11" class="p-10 text-center text-gray-500 text-sm">Chưa có node nào phù hợp.</td>
                 </tr>
               </tbody>
             </table>
@@ -404,7 +416,90 @@
             </div>
           </div>
           <div v-if="accounts.length === 0" class="col-span-3 card-panel p-10 rounded-2xl text-center text-gray-500 text-sm">
-            Chưa có tài khoản nào được lưu. Khi bạn nạp batch proxy mới, tài khoản sẽ tự động lưu vào đây.
+            Chưa có tài khoản nào được lưu.
+          </div>
+        </div>
+      </section>
+
+      <!-- ==================== TAB 4: BẢNG CÀI ĐẶT & AUDIT CHUYÊN SÂU ==================== -->
+      <section v-if="currentTab === 'settings'" class="space-y-6">
+        <!-- ĐẶT TÊN VPS & ĐỔI MẬT KHẨU -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- ĐẶT TÊN ĐỊNH DANH VPS -->
+          <div class="card-panel p-6 rounded-2xl space-y-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa fa-tag text-indigo-400"></i> Đặt Tên Định Danh Cho VPS (Quản Lý Hàng Trăm VPS)
+            </h3>
+            <p class="text-xs text-gray-400">Tên này sẽ xuất hiện trên thanh tiêu đề và Header của Dashboard để bạn mở nhiều tab trình duyệt mà không bị nhầm lẫn.</p>
+            <div class="flex gap-2">
+              <input v-model="vpsAliasInput" placeholder="Ví dụ: VPS-01-Decodo-US..." class="flex-1 bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs">
+              <button @click="saveVpsAlias" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white text-xs">Lưu Tên</button>
+            </div>
+          </div>
+
+          <!-- ĐỔI MẬT KHẨU QUẢN TRỊ TRÊN WEB -->
+          <div class="card-panel p-6 rounded-2xl space-y-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa fa-key text-amber-400"></i> Đổi Mật Khẩu Quản Trị Web
+            </h3>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <input v-model="passForm.old_password" type="password" placeholder="Mật khẩu hiện tại..." class="bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+              <input v-model="passForm.new_password" type="password" placeholder="Mật khẩu mới (≥6 ký tự)..." class="bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+            </div>
+            <div class="flex justify-end">
+              <button @click="submitChangePassword" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 font-bold rounded-xl text-white text-xs">Xác Nhận Đổi Mật Khẩu</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- BẢNG AUDIT RÀ SOÁT TẤT CẢ THÔNG SỐ VÀ SOURCE CÀI ĐẶT -->
+        <div class="card-panel p-6 rounded-2xl space-y-4">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa fa-clipboard-check text-emerald-400"></i> Bảng Rà Soát Thông Số & Tính Năng Hệ Thống (System Audit)
+              </h3>
+              <p class="text-xs text-gray-400 mt-1">Kiểm tra toàn bộ các tham số hạt nhân Kernel, module mạng và độ an toàn phần cứng.</p>
+            </div>
+            <button @click="loadAudit" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs text-gray-300">
+              <i class="fa fa-sync-alt mr-1"></i> Quét lại
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div v-for="item in auditItems" :key="item.name" class="p-3 bg-gray-900/60 rounded-xl border border-gray-800 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-gray-200">{{ item.name }}</div>
+                <div class="text-[11px] text-gray-400 mt-0.5">{{ item.detail }}</div>
+              </div>
+              <div>
+                <span v-if="item.status" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
+                  <i class="fa fa-check"></i> ĐẠT CHUẨN
+                </span>
+                <span v-else class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800 flex items-center gap-1">
+                  <i class="fa fa-times"></i> CẢNH BÁO
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- CÁC HÀNH ĐỘNG ĐIỀU KHIỂN SÂU VPS -->
+        <div class="card-panel p-6 rounded-2xl space-y-4">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa fa-cogs text-indigo-400"></i> Các Tác Vụ Kiểm Soát Sâu VPS (Deep Control Actions)
+          </h3>
+          <p class="text-xs text-gray-400">Thực hiện bảo trì phần cứng, dọn rác hệ thống hoặc khởi động lại an toàn.</p>
+          <div class="flex flex-wrap gap-3">
+            <button @click="cleanRam" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
+              <i class="fa fa-broom text-amber-400"></i> Dọn Rác & Cache RAM (Drop Caches)
+            </button>
+            <button @click="pruneDocker" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
+              <i class="fa fa-dumpster text-blue-400"></i> Dọn Rác Docker (Prune Containers/Images)
+            </button>
+            <button @click="rebootVps" class="px-4 py-2.5 bg-rose-950 hover:bg-rose-900 border border-rose-800 font-bold rounded-xl text-rose-300 text-xs flex items-center gap-2">
+              <i class="fa fa-power-off text-rose-400"></i> Khởi Động Lại VPS An Toàn (Graceful Reboot)
+            </button>
           </div>
         </div>
       </section>
@@ -412,7 +507,7 @@
     </main>
   </div>
 
-  <!-- ==================== MODAL XEM LOG CONTAINER (CƠ CHẾ XEM LOG TRỰC TIẾP) ==================== -->
+  <!-- MODAL XEM LOG CONTAINER -->
   <div v-if="showLogsModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
     <div class="card-panel w-full max-w-4xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-xs">
       <div class="flex justify-between items-center pb-3 border-b border-gray-800">
@@ -430,7 +525,6 @@
         </div>
       </div>
 
-      <!-- LOG TABS -->
       <div class="flex gap-2 border-b border-gray-800 pb-2">
         <button @click="logTab = 'app'" :class="logTab === 'app' ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-900 text-gray-400'" class="px-3 py-1.5 rounded-lg transition">
           Log Ứng Dụng ({{ activeLogNode.platform }})
@@ -440,7 +534,6 @@
         </button>
       </div>
 
-      <!-- TERMINAL DISPLAY (GIỚI HẠN SCROLL CHỐNG TRÀN) -->
       <div class="bg-black/90 p-4 rounded-xl border border-gray-800 font-mono text-[11px] h-96 overflow-y-auto leading-relaxed text-gray-300 select-text whitespace-pre-wrap">
         <div v-if="logLoading" class="text-center py-12 text-gray-500"><i class="fa fa-spinner fa-spin mr-2"></i> Đang tải log từ container...</div>
         <div v-else-if="logTab === 'app'">{{ nodeLogs.app_logs || 'Chưa có log từ ứng dụng.' }}</div>
@@ -449,7 +542,7 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL CẬP NHẬT OTA (VERSION UPDATE) ==================== -->
+  <!-- MODAL CẬP NHẬT OTA (VERSION UPDATE) -->
   <div v-if="showOtaModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
     <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-xs">
       <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -460,7 +553,9 @@
         <div>Commit mới nhất: <b class="text-emerald-400">{{ otaInfo.remote_sha }}</b></div>
         <div class="text-[11px] text-gray-300 pt-1 border-t border-gray-800">Nội dung: {{ otaInfo.message }}</div>
       </div>
-      <p class="text-gray-400 text-xs">Hệ thống sẽ kéo mã nguồn mới nhất và tự động khởi động lại Dashboard trong vài giây.</p>
+      <div class="p-2.5 bg-blue-950/40 border border-blue-800/60 rounded-xl text-blue-300 text-[11px]">
+        <i class="fa fa-shield-alt mr-1"></i> <b>Cam kết không rớt mạng:</b> Cập nhật chỉ khởi động lại giao diện Web, <b>KHÔNG chạm vào các container proxy đang cày</b> và không hao tốn dung lượng proxy.
+      </div>
       <div class="flex justify-end gap-2 pt-2">
         <button @click="showOtaModal = false" class="px-4 py-2 bg-gray-800 rounded-xl text-gray-300">Để Sau</button>
         <button @click="applyOtaUpdate" :disabled="otaUpdating" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 font-bold rounded-xl text-white flex items-center gap-1.5">
@@ -471,7 +566,7 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL NHẬP BATCH PROXY ==================== -->
+  <!-- MODAL NHẬP BATCH PROXY -->
   <div v-if="showImportModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
     <div class="card-panel w-full max-w-2xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-sm">
       <div class="flex justify-between items-center pb-3 border-b border-gray-800">
@@ -491,7 +586,7 @@
 
       <div class="grid grid-cols-2 gap-3.5">
         <div>
-          <label class="text-gray-400 block mb-1 text-xs font-semibold">Mã Tên Account (Để quản trị)</label>
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Mã Tên Account (Để quản lý)</label>
           <input v-model="form.account_name" placeholder="VD: Traff_VIP_01..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
         </div>
         <div>
@@ -542,7 +637,7 @@
     </div>
   </div>
 
-  <!-- ==================== MODAL SỬA PROXY LẺ ==================== -->
+  <!-- MODAL SỬA PROXY LẺ -->
   <div v-if="showEditModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
     <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-3.5 border border-gray-800 shadow-2xl text-sm">
       <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -585,6 +680,11 @@ createApp({
     const accounts = ref([]);
     const selectedIds = ref([]);
     const checkLoading = ref(false);
+    const auditItems = ref([]);
+
+    // Phân trang
+    const currentPage = ref(1);
+    const pageSize = ref(25);
 
     // OTA Update State
     const otaChecking = ref(false);
@@ -598,6 +698,10 @@ createApp({
     const logTab = ref("app");
     const activeLogNode = ref({});
     const nodeLogs = ref({ app_logs: "", tun_logs: "" });
+
+    // Settings State
+    const vpsAliasInput = ref("");
+    const passForm = ref({ old_password: "", new_password: "" });
 
     const showImportModal = ref(false);
     const showEditModal = ref(false);
@@ -640,6 +744,7 @@ createApp({
           loadSys();
           loadNodes();
           loadAccounts();
+          loadAudit();
         } else {
           loginError.value = data.detail || "Đăng nhập thất bại";
         }
@@ -663,6 +768,7 @@ createApp({
         loadSys();
         loadNodes();
         loadAccounts();
+        loadAudit();
       }
     };
 
@@ -670,7 +776,12 @@ createApp({
       if (!isLoggedIn.value) return;
       const res = await fetch("/api/system", { headers: getAuthHeaders() });
       if (res.status === 401) { handleLogout(); return; }
-      if (res.ok) sys.value = await res.json();
+      if (res.ok) {
+        sys.value = await res.json();
+        if (!vpsAliasInput.value && sys.value.vps_alias) {
+          vpsAliasInput.value = sys.value.vps_alias;
+        }
+      }
     };
 
     const loadNodes = async () => {
@@ -686,7 +797,68 @@ createApp({
       if (res.ok) accounts.value = await res.json();
     };
 
-    // Kiểm tra OTA Update từ GitHub
+    const loadAudit = async () => {
+      if (!isLoggedIn.value) return;
+      const res = await fetch("/api/system/audit", { headers: getAuthHeaders() });
+      if (res.ok) auditItems.value = await res.json();
+    };
+
+    const saveVpsAlias = async () => {
+      if (!vpsAliasInput.value) return;
+      await fetch("/api/system/vps-alias", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ vps_alias: vpsAliasInput.value })
+      });
+      loadSys();
+      alert("Đã cập nhật tên VPS thành công!");
+    };
+
+    const submitChangePassword = async () => {
+      if (!passForm.value.old_password || !passForm.value.new_password) {
+        alert("Vui lòng điền đầy đủ mật khẩu cũ và mới!");
+        return;
+      }
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(passForm.value)
+      });
+      const data = await res.json();
+      if (res.ok && data.new_token) {
+        localStorage.setItem("fleet_token", data.new_token);
+        passForm.value = { old_password: "", new_password: "" };
+        alert("Đã đổi mật khẩu thành công!");
+      } else {
+        alert(data.detail || "Đổi mật khẩu thất bại!");
+      }
+    };
+
+    const cleanRam = async () => {
+      if (confirm("Giải phóng cache RAM của Linux?")) {
+        const res = await fetch("/api/system/clean-ram", { method: "POST", headers: getAuthHeaders() });
+        const d = await res.json();
+        alert(d.message || "Đã dọn cache RAM!");
+        loadSys();
+      }
+    };
+
+    const pruneDocker = async () => {
+      if (confirm("Dọn dẹp container và image Docker thừa?")) {
+        const res = await fetch("/api/system/prune-docker", { method: "POST", headers: getAuthHeaders() });
+        const d = await res.json();
+        alert(`Đã dọn dẹp ${d.containers_deleted} container thừa, giải phóng ${d.space_reclaimed_mb} MB!`);
+        loadSys();
+      }
+    };
+
+    const rebootVps = async () => {
+      if (confirm("CẢNH BÁO: Khởi động lại toàn bộ VPS? Các container sẽ được dừng an toàn trước khi reboot.")) {
+        await fetch("/api/system/reboot-vps", { method: "POST", headers: getAuthHeaders() });
+        alert("VPS đang khởi động lại. Hãy đợi khoảng 1-2 phút rồi mở lại trang web!");
+      }
+    };
+
     const checkOtaUpdate = async () => {
       otaChecking.value = true;
       try {
@@ -719,7 +891,6 @@ createApp({
       }
     };
 
-    // Mở Modal xem Logs
     const openLogsModal = (node) => {
       activeLogNode.value = node;
       logTab.value = "app";
@@ -800,6 +971,12 @@ createApp({
       });
     });
 
+    const totalPages = computed(() => Math.ceil(filteredNodes.value.length / pageSize.value) || 1);
+    const paginatedNodes = computed(() => {
+      const start = (currentPage.value - 1) * pageSize.value;
+      return filteredNodes.value.slice(start, start + pageSize.value);
+    });
+
     const submitImport = async () => {
       if (!form.value.platform || !form.value.proxies_raw) {
         alert("Vui lòng chọn Platform và dán danh sách proxy!");
@@ -849,7 +1026,7 @@ createApp({
     };
 
     const toggleSelectAll = (e) => {
-      if (e.target.checked) selectedIds.value = filteredNodes.value.map(n => n.id);
+      if (e.target.checked) selectedIds.value = paginatedNodes.value.map(n => n.id);
       else selectedIds.value = [];
     };
 
@@ -894,8 +1071,10 @@ createApp({
 
     return {
       isLoggedIn, loginLoading, loginError, showPass, loginForm, handleLogin, handleLogout,
-      currentTab, sys, nodes, accounts, filteredNodes, selectedIds, runningCount, liveCount, deadCount, totalTrafficGb,
-      filterPlatform, filterAccount, filterProvider, filterStatus, checkLoading,
+      currentTab, sys, nodes, accounts, filteredNodes, paginatedNodes, selectedIds, runningCount, liveCount, deadCount, totalTrafficGb,
+      filterPlatform, filterAccount, filterProvider, filterStatus, checkLoading, auditItems,
+      currentPage, pageSize, totalPages,
+      vpsAliasInput, passForm, saveVpsAlias, submitChangePassword, cleanRam, pruneDocker, rebootVps, loadAudit,
       showImportModal, showEditModal, form, editNodeData, pickSavedAccount, deleteAccount,
       submitImport, startNode, stopNode, deleteNode, openEditModal, saveEditNode,
       toggleSelectAll, startSelected, stopSelected, deleteSelected, loadNodes, checkSingleNode, checkAllLive, deleteDeadNodes,

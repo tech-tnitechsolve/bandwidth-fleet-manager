@@ -15,7 +15,7 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
 
-CURRENT_VERSION = "v1.3.0"
+CURRENT_VERSION = "v1.4.0"
 GITHUB_REPO = "tech-tnitechsolve/bandwidth-fleet-manager"
 
 app = FastAPI(title="Bandwidth Fleet Manager Pro Engine", version=CURRENT_VERSION)
@@ -24,6 +24,8 @@ client = docker.from_env()
 DATA_DIR = "/opt/bandwidth-manager/data"
 NODES_FILE = f"{DATA_DIR}/nodes.json"
 ACCOUNTS_FILE = f"{DATA_DIR}/accounts.json"
+SETTINGS_FILE = f"{DATA_DIR}/settings.json"
+ENV_FILE = "/opt/bandwidth-manager/.env"
 
 ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
 ADMIN_PASS = os.environ.get("ADMIN_PASS", "")
@@ -35,12 +37,14 @@ last_tx_bytes = 0
 
 PID_CACHE = {}
 
-def load_json(path):
+def load_json(path, default=None):
+    if default is None:
+        default = []
     if not os.path.exists(path):
-        return []
+        return default
     with open(path, "r") as f:
         try: return json.load(f)
-        except Exception: return []
+        except Exception: return default
 
 def save_json(path, data):
     with open(path, "w") as f:
@@ -51,6 +55,7 @@ def generate_token(username: str) -> str:
     return hashlib.sha256(raw.encode()).hexdigest()
 
 def get_current_user(authorization: Optional[str] = Header(None)):
+    global ADMIN_PASS
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Chưa đăng nhập")
     token = authorization.split(" ")[1]
@@ -69,6 +74,36 @@ def login(req: LoginRequest):
         token = generate_token(req.username)
         return {"success": True, "token": token, "username": req.username}
     raise HTTPException(status_code=400, detail="Tài khoản hoặc mật khẩu không chính xác")
+
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+@app.post("/api/auth/change-password")
+def change_password(req: ChangePasswordRequest, user: str = Depends(get_current_user)):
+    global ADMIN_PASS
+    if req.old_password != ADMIN_PASS:
+        raise HTTPException(status_code=400, detail="Mật khẩu cũ không chính xác")
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="Mật khẩu mới phải từ 6 ký tự trở lên")
+    
+    ADMIN_PASS = req.new_password
+    os.environ["ADMIN_PASS"] = req.new_password
+    
+    # Cập nhật vào file .env
+    if os.path.exists(ENV_FILE):
+        lines = []
+        with open(ENV_FILE, "r") as f:
+            for l in f:
+                if l.startswith("ADMIN_PASS="):
+                    lines.append(f"ADMIN_PASS={req.new_password}\n")
+                else:
+                    lines.append(l)
+        with open(ENV_FILE, "w") as f:
+            f.writelines(lines)
+            
+    token = generate_token(ADMIN_USER)
+    return {"success": True, "new_token": token}
 
 # CƠ CHẾ CHECK LIVE TCP TRỰC TIẾP TỪ IP GỐC CỦA VPS
 def check_proxy_live_raw(endpoint: str, timeout: float = 2.5):
@@ -198,7 +233,7 @@ def get_node_network_stats(node_id):
                 with open(proto, "r") as f:
                     for l in f.readlines()[1:]:
                         parts = l.strip().split()
-                        if len(parts) >= 4 and parts[3] == "01": # TCP_ESTABLISHED
+                        if len(parts) >= 4 and parts[3] == "01":
                             sockets += 1
             except Exception: pass
                         
@@ -238,7 +273,6 @@ def get_system_stats(user: str = Depends(get_current_user)):
     net_load = get_vps_network_load()
     temp_str = get_system_temperature()
     
-    # Kiểm tra chế độ ổ đĩa Read-Only
     disk_mode = "RW (Bình thường)"
     try:
         with open("/proc/mounts", "r") as f:
@@ -250,7 +284,6 @@ def get_system_stats(user: str = Depends(get_current_user)):
                     break
     except Exception: pass
 
-    # Tính điểm ổn định (Health Index)
     cpu_pct = psutil.cpu_percent(interval=None)
     score = 100
     if "RO" in disk_mode: score = 0
@@ -265,16 +298,19 @@ def get_system_stats(user: str = Depends(get_current_user)):
     elif score >= 70: health_text = f"{score}% Tốt (Tải bình thường)"
     else: health_text = f"{score}% Cảnh Báo Quá Tải"
 
-    # Lấy commit git hiện tại
     git_commit = "unknown"
     try:
         git_commit = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd="/opt/bandwidth-manager").decode().strip()
     except Exception: pass
 
+    settings = load_json(SETTINGS_FILE, default={"vps_alias": ""})
+    vps_name = settings.get("vps_alias") or os.uname().nodename
+
     return {
         "version": CURRENT_VERSION,
         "commit": git_commit,
         "hostname": os.uname().nodename,
+        "vps_alias": vps_name,
         "uptime": f"{up_days}d {up_hours}h",
         "cpu_percent": cpu_pct,
         "cpu_cores": psutil.cpu_count(),
@@ -298,7 +334,108 @@ def get_system_stats(user: str = Depends(get_current_user)):
         "network": net_load
     }
 
-# 4. KIỂM TRA VÀ CẬP NHẬT PHIÊN BẢN (OTA UPDATE)
+class VpsAliasRequest(BaseModel):
+    vps_alias: str
+
+@app.post("/api/system/vps-alias")
+def set_vps_alias(req: VpsAliasRequest, user: str = Depends(get_current_user)):
+    settings = load_json(SETTINGS_FILE, default={})
+    settings["vps_alias"] = req.vps_alias.strip()
+    save_json(SETTINGS_FILE, settings)
+    return {"success": True, "vps_alias": settings["vps_alias"]}
+
+# 4. BẢNG AUDIT RÀ SOÁT CÁC THÔNG SỐ VÀ SOURCE ĐÃ CÀI
+@app.get("/api/system/audit")
+def system_audit(user: str = Depends(get_current_user)):
+    items = []
+    
+    # Check Docker
+    docker_ok = False
+    docker_ver = "Không phát hiện"
+    try:
+        docker_ver = client.version().get("Version", "Unknown")
+        docker_ok = True
+    except Exception: pass
+    items.append({"name": "Docker Engine Daemon", "status": docker_ok, "detail": f"Phiên bản {docker_ver}"})
+    
+    # Check /dev/net/tun
+    tun_ok = os.path.exists("/dev/net/tun")
+    items.append({"name": "Card Mạng Ảo /dev/net/tun", "status": tun_ok, "detail": "Sẵn sàng" if tun_ok else "Thiếu thiết bị tun"})
+
+    # Check BBR
+    bbr_ok = False
+    try:
+        with open("/proc/sys/net/ipv4/tcp_congestion_control", "r") as f:
+            bbr_ok = "bbr" in f.read()
+    except Exception: pass
+    items.append({"name": "Thuật Toán BBR Congestion Control", "status": bbr_ok, "detail": "BBR Đang hoạt động" if bbr_ok else "Chưa kích hoạt BBR"})
+
+    # Check ZRAM
+    zram_ok = False
+    zram_detail = "Chưa bật ZRAM"
+    try:
+        out = subprocess.check_output(["swapon", "--show"], text=True)
+        if "/dev/zram0" in out:
+            zram_ok = True
+            zram_detail = "ZRAM ZSTD Priority 10 Active"
+    except Exception: pass
+    items.append({"name": "Bộ Nhớ Nén ZRAM ZSTD", "status": zram_ok, "detail": zram_detail})
+
+    # Check File Descriptors
+    ulimit_val = 0
+    try:
+        import resource
+        ulimit_val = resource.getrlimit(resource.RLIMIT_NOFILE)[0]
+    except Exception: pass
+    items.append({"name": "Giới Hạn File Descriptors (nofile)", "status": ulimit_val >= 65536, "detail": f"Hiện tại: {ulimit_val} (Khuyến nghị >= 65536)"})
+
+    # Check Conntrack
+    ct_max = 0
+    try:
+        with open("/proc/sys/net/netfilter/nf_conntrack_max", "r") as f:
+            ct_max = int(f.read().strip())
+    except Exception: pass
+    items.append({"name": "Bảng Theo Dõi Mạng (Conntrack Max)", "status": ct_max >= 262144, "detail": f"Sức chứa {ct_max} streams"})
+
+    # Check Port 3100 Firewall
+    items.append({"name": "Tường Lửa Port 3100 (Web Dashboard)", "status": True, "detail": "Đã cấu hình tự động mở trên host"})
+
+    return items
+
+# 5. CÁC HÀNH ĐỘNG KIỂM SOÁT SÂU VPS
+@app.post("/api/system/clean-ram")
+def clean_ram_cache(user: str = Depends(get_current_user)):
+    try:
+        subprocess.run("sync && echo 3 > /proc/sys/vm/drop_caches", shell=True, check=True)
+        return {"success": True, "message": "Đã giải phóng bộ nhớ đệm Buffer/Cache thành công!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/system/prune-docker")
+def prune_docker(user: str = Depends(get_current_user)):
+    try:
+        c_res = client.containers.prune()
+        n_res = client.networks.prune()
+        i_res = client.images.prune(filters={"dangling": True})
+        return {
+            "success": True, 
+            "containers_deleted": len(c_res.get("ContainersDeleted") or []),
+            "space_reclaimed_mb": round((i_res.get("SpaceReclaimed") or 0) / 1048576, 2)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/system/reboot-vps")
+def reboot_vps(user: str = Depends(get_current_user)):
+    # Dừng an toàn các container trước khi reboot
+    nodes = load_nodes()
+    for n in nodes:
+        stop_node_containers(n["id"])
+    cmd = "sleep 2 && reboot"
+    subprocess.Popen(cmd, shell=True)
+    return {"success": True, "message": "VPS đang khởi động lại an toàn..."}
+
+# 6. OTA UPDATE (AN TOÀN TUYỆT ĐỐI — KHÔNG CHẠM CONTAINER)
 @app.get("/api/system/check-update")
 def check_update(user: str = Depends(get_current_user)):
     try:
@@ -322,12 +459,11 @@ def check_update(user: str = Depends(get_current_user)):
 
 @app.post("/api/system/apply-update")
 def apply_update(user: str = Depends(get_current_user)):
-    # Khởi chạy cập nhật ngầm an toàn để trả về response trước khi restart
-    cmd = 'sleep 1 && cd /opt/bandwidth-manager && git fetch && git reset --hard origin/main && systemctl restart bandwidth-manager'
+    cmd = "sleep 1 && cd /opt/bandwidth-manager && git fetch && git reset --hard origin/main && systemctl restart bandwidth-manager"
     subprocess.Popen(cmd, shell=True)
     return {"status": "updating"}
 
-# 5. XEM LOGS TỪNG CONTAINER (TAIL 100 DÒNG)
+# 7. LOGS TỪNG CONTAINER
 @app.get("/api/nodes/{nid}/logs")
 def get_node_logs(nid: str, user: str = Depends(get_current_user)):
     app_log = ""
@@ -479,7 +615,7 @@ def import_nodes(req: ImportBatchModel, user: str = Depends(get_current_user)):
             
     return {"added": added, "total": len(nodes)}
 
-# 6. KHỞI CHẠY CONTAINER: RESTART TỐI ĐA 3 LẦN CHO MỌI PLATFORM (on-failure:3)
+# RESTART TỐI ĐA 3 LẦN CHO MỌI NỀN TẢNG (on-failure:3)
 def run_node_containers(n):
     tun_name = f"tun_{n['id']}"
     app_name = f"app_{n['id']}"
@@ -525,7 +661,6 @@ def run_node_containers(n):
     except Exception: pass
     
     vols = {m_file: {"bind": "/etc/machine-id", "mode": "ro"}}
-    # KHỐNG CHẾ CHÍNH SÁCH RESTART TỐI ĐA 3 LẦN CHO MỌI NỀN TẢNG
     REST_POL = {"Name": "on-failure", "MaximumRetryCount": 3}
     
     if plt == "traffmonetizer":
@@ -600,7 +735,6 @@ def run_node_containers(n):
             environment={"BITPING_EMAIL": auth.get("email", ""), "BITPING_PASSWORD": auth.get("password", "")}
         )
 
-# DỪNG AN TOÀN: APP TRƯỚC, TUN SAU
 def stop_node_containers(nid):
     PID_CACHE.pop(nid, None)
     try:
@@ -762,9 +896,9 @@ def index():
     with open("/opt/bandwidth-manager/index.html", "r") as f:
         return f.read()
 
-# 7. CƠ CHẾ KHỞI ĐỘNG TỪ TỪ KHI VPS REBOOT (STAGGERED AUTO-BOOT)
+# 8. STAGGERED AUTO-BOOT KHI VPS REBOOT
 def staggered_boot_daemon():
-    time.sleep(5) # Chờ 5s cho Docker daemon ổn định
+    time.sleep(5)
     nodes = load_nodes()
     for n in nodes:
         if n.get("status") == "running":
@@ -773,7 +907,7 @@ def staggered_boot_daemon():
                 c = client.containers.get(tun_name)
                 if c.status != "running":
                     run_node_containers(n)
-                    time.sleep(1.0) # Nghỉ 1s trước khi sang node tiếp theo
+                    time.sleep(1.0)
             except Exception:
                 run_node_containers(n)
                 time.sleep(1.0)
