@@ -5,6 +5,8 @@ import json
 import uuid
 import hashlib
 import time
+import socket
+from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, HTTPException, Depends, status, Header
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -64,7 +66,21 @@ def login(req: LoginRequest):
         return {"success": True, "token": token, "username": req.username}
     raise HTTPException(status_code=400, detail="Tài khoản hoặc mật khẩu không chính xác")
 
-# 1. ĐO TẢI MẠNG VẬT LÝ VPS (THROUGHPUT MBPS & PACKET DROPS)
+# CƠ CHẾ CHECK LIVE TCP TRỰC TIẾP TỪ IP GỐC CỦA VPS (ZERO-DATA / AN TOÀN CHO IP WHITELIST)
+def check_proxy_live_raw(endpoint: str, timeout: float = 2.5):
+    try:
+        if ":" not in endpoint:
+            return {"is_live": False, "ping_ms": 0}
+        host, port_str = endpoint.rsplit(":", 1)
+        port = int(port_str)
+        t_start = time.time()
+        with socket.create_connection((host, port), timeout=timeout):
+            ping_ms = round((time.time() - t_start) * 1000)
+            return {"is_live": True, "ping_ms": ping_ms}
+    except Exception:
+        return {"is_live": False, "ping_ms": 0}
+
+# 1. ĐO TẢI MẠNG VẬT LÝ VPS (MBPS & DROP PACKETS REALTIME)
 def get_vps_network_load():
     global last_net_time, last_rx_bytes, last_tx_bytes
     
@@ -338,13 +354,15 @@ def import_nodes(req: ImportBatchModel, user: str = Depends(get_current_user)):
                 "email": req.email.strip() if req.email else "",
                 "password": req.password.strip() if req.password else ""
             },
+            "ping_ms": 0,
+            "is_live": True,
             "status": "stopped"
         }
         nodes.append(node)
         added += 1
     save_nodes(nodes)
     
-    # Tự động lưu tài khoản vào sổ để tái sử dụng
+    # Lưu tài khoản vào sổ để tái sử dụng
     if req.account_name:
         accounts = load_json(ACCOUNTS_FILE)
         if not any(a["account_name"] == req.account_name.strip() and a["platform"] == req.platform.strip() for a in accounts):
@@ -366,6 +384,7 @@ def run_node_containers(n):
     dev = n["device_name"]
     node_id = n["id"]
     
+    # Sinh machine-id độc lập chống ban Sybil/Batch
     m_dir = f"/opt/bandwidth-manager/data/meta_{node_id}"
     os.makedirs(m_dir, exist_ok=True)
     m_file = f"{m_dir}/machine-id"
@@ -508,6 +527,48 @@ def get_nodes(user: str = Depends(get_current_user)):
         n["status"] = metrics["status"]
     return nodes
 
+@app.post("/api/nodes/{nid}/check")
+def check_single_node(nid: str, user: str = Depends(get_current_user)):
+    nodes = load_nodes()
+    for n in nodes:
+        if n["id"] == nid:
+            res = check_proxy_live_raw(n["endpoint"])
+            n["is_live"] = res["is_live"]
+            n["ping_ms"] = res["ping_ms"]
+            save_nodes(nodes)
+            return res
+    raise HTTPException(status_code=404, detail="Node không tồn tại")
+
+@app.post("/api/nodes/check-all")
+def check_all_nodes(user: str = Depends(get_current_user)):
+    nodes = load_nodes()
+    if not nodes:
+        return {"total": 0, "live": 0, "dead": 0}
+
+    def worker_check(node):
+        res = check_proxy_live_raw(node["endpoint"])
+        node["is_live"] = res["is_live"]
+        node["ping_ms"] = res["ping_ms"]
+        return res["is_live"]
+
+    # Sử dụng ThreadPoolExecutor tối đa 25 luồng (hoàn thành trong 1s, không gây nóng máy)
+    with ThreadPoolExecutor(max_workers=25) as executor:
+        results = list(executor.map(worker_check, nodes))
+
+    save_nodes(nodes)
+    live_cnt = sum(1 for r in results if r)
+    return {"total": len(nodes), "live": live_cnt, "dead": len(nodes) - live_cnt}
+
+@app.delete("/api/nodes/dead")
+def delete_dead_nodes(user: str = Depends(get_current_user)):
+    nodes = load_nodes()
+    dead_ids = [n["id"] for n in nodes if not n.get("is_live", True)]
+    for did in dead_ids:
+        stop_node_containers(did)
+    nodes = [n for n in nodes if n["id"] not in dead_ids]
+    save_nodes(nodes)
+    return {"deleted": len(dead_ids)}
+
 @app.post("/api/nodes/{nid}/start")
 def start_node(nid: str, user: str = Depends(get_current_user)):
     nodes = load_nodes()
@@ -551,6 +612,11 @@ def update_node(nid: str, req: EditNodeModel, user: str = Depends(get_current_us
             if req.account_name: n["account_name"] = req.account_name
             if req.provider: n["provider"] = req.provider
             
+            # Kiểm tra ping ngay lập tức cho proxy mới
+            res = check_proxy_live_raw(n["endpoint"])
+            n["is_live"] = res["is_live"]
+            n["ping_ms"] = res["ping_ms"]
+            
             if n["status"] == "running":
                 stop_node_containers(nid)
                 run_node_containers(n)
@@ -585,6 +651,15 @@ def bulk_stop(req: List[str], user: str = Depends(get_current_user)):
             n["status"] = "stopped"
     save_nodes(nodes)
     return {"status": "bulk_stopped"}
+
+@app.post("/api/nodes/bulk/delete")
+def bulk_delete(req: List[str], user: str = Depends(get_current_user)):
+    nodes = load_nodes()
+    for nid in req:
+        stop_node_containers(nid)
+    nodes = [n for n in nodes if n["id"] not in req]
+    save_nodes(nodes)
+    return {"status": "bulk_deleted"}
 
 @app.get("/", response_class=HTMLResponse)
 def index():

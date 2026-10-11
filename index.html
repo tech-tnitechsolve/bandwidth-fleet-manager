@@ -4,55 +4,63 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bandwidth Fleet Manager — NextGen Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
   <style>
-    body { background-color: #090d16; color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      background-color: #0b0f19;
+      color: #f1f5f9;
+      font-family: 'Be Vietnam Pro', sans-serif;
+    }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
     .card-panel { background: #111827; border: 1px solid #1f293d; }
     .card-panel:hover { border-color: #374151; }
-    .glass-nav { background: rgba(17, 24, 39, 0.85); backdrop-filter: blur(12px); border-bottom: 1px solid #1f293d; }
+    .glass-nav { background: rgba(17, 24, 39, 0.9); backdrop-filter: blur(12px); border-bottom: 1px solid #1f293d; }
   </style>
 </head>
-<body class="min-h-screen">
+<body class="min-h-screen text-sm">
 <div id="app">
 
-  <!-- ==================== 1. MÀN HÌNH ĐĂNG NHẬP RIÊNG BIỆT ==================== -->
+  <!-- ==================== 1. MÀN HÌNH ĐĂNG NHẬP (LOGIN PAGE) ==================== -->
   <div v-if="!isLoggedIn" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#090d16] via-[#0f172a] to-[#090d16]">
     <div class="card-panel w-full max-w-md p-8 rounded-2xl shadow-2xl space-y-6 border border-gray-800">
       <div class="text-center space-y-2">
-        <div class="w-16 h-16 mx-auto rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 text-2xl">
+        <div class="w-16 h-16 mx-auto rounded-2xl bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 text-3xl">
           <i class="fa fa-server"></i>
         </div>
         <h2 class="text-2xl font-extrabold tracking-tight text-white">Bandwidth Fleet Manager</h2>
-        <p class="text-xs text-gray-400">Đăng nhập tài khoản quản trị cụm node trên VPS</p>
+        <p class="text-sm text-gray-400">Đăng nhập tài khoản quản trị cụm node trên VPS</p>
       </div>
 
-      <form @submit.prevent="handleLogin" class="space-y-4 text-xs">
+      <form @submit.prevent="handleLogin" class="space-y-4 text-sm">
         <div>
-          <label class="block text-gray-400 font-medium mb-1">Tài khoản</label>
+          <label class="block text-gray-400 font-medium mb-1.5">Tài khoản</label>
           <div class="relative">
-            <i class="fa fa-user absolute left-3 top-3 text-gray-500"></i>
-            <input v-model="loginForm.username" type="text" placeholder="admin" required class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 p-2.5 text-white focus:border-indigo-500 outline-none">
+            <i class="fa fa-user absolute left-3.5 top-3.5 text-gray-500"></i>
+            <input v-model="loginForm.username" type="text" placeholder="admin" required class="w-full bg-gray-900 border border-gray-700 rounded-xl pl-10 p-3 text-white focus:border-indigo-500 outline-none">
           </div>
         </div>
 
         <div>
-          <label class="block text-gray-400 font-medium mb-1">Mật khẩu</label>
+          <label class="block text-gray-400 font-medium mb-1.5">Mật khẩu</label>
           <div class="relative">
-            <i class="fa fa-lock absolute left-3 top-3 text-gray-500"></i>
-            <input v-model="loginForm.password" :type="showPass ? 'text' : 'password'" placeholder="••••••••" required class="w-full bg-gray-900 border border-gray-700 rounded-lg pl-9 pr-9 p-2.5 text-white focus:border-indigo-500 outline-none">
-            <button type="button" @click="showPass = !showPass" class="absolute right-3 top-3 text-gray-500 hover:text-gray-300">
+            <i class="fa fa-lock absolute left-3.5 top-3.5 text-gray-500"></i>
+            <input v-model="loginForm.password" :type="showPass ? 'text' : 'password'" placeholder="••••••••" required class="w-full bg-gray-900 border border-gray-700 rounded-xl pl-10 pr-10 p-3 text-white focus:border-indigo-500 outline-none">
+            <button type="button" @click="showPass = !showPass" class="absolute right-3.5 top-3.5 text-gray-500 hover:text-gray-300">
               <i :class="showPass ? 'fa fa-eye-slash' : 'fa fa-eye'"></i>
             </button>
           </div>
         </div>
 
-        <div v-if="loginError" class="p-2.5 bg-rose-950/60 border border-rose-800 text-rose-300 rounded-lg text-center font-medium">
+        <div v-if="loginError" class="p-3 bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl text-center font-medium">
           {{ loginError }}
         </div>
 
-        <button type="submit" :disabled="loginLoading" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-lg text-white transition flex items-center justify-center gap-2">
+        <button type="submit" :disabled="loginLoading" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white transition flex items-center justify-center gap-2">
           <span v-if="loginLoading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
           <span>Đăng Nhập</span>
         </button>
@@ -60,39 +68,39 @@
     </div>
   </div>
 
-  <!-- ==================== 2. MÀN HÌNH CHÍNH (DASHBOARD) ==================== -->
+  <!-- ==================== 2. MÀN HÌNH DASHBOARD ==================== -->
   <div v-else class="space-y-6">
 
     <!-- TOP NAVBAR -->
-    <header class="glass-nav sticky top-0 z-40 px-6 py-3 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <div class="w-9 h-9 rounded-xl bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400">
-          <i class="fa fa-network-wired text-sm"></i>
+    <header class="glass-nav sticky top-0 z-40 px-6 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3.5">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-400">
+          <i class="fa fa-network-wired text-base"></i>
         </div>
         <div>
-          <h1 class="text-sm font-extrabold text-white">Bandwidth Fleet Manager</h1>
-          <span class="text-[10px] text-gray-400 font-mono">Host: {{ sys.hostname || 'VPS Node' }}</span>
+          <h1 class="text-base font-extrabold text-white">Bandwidth Fleet Manager</h1>
+          <span class="text-xs text-gray-400 font-mono">Host: {{ sys.hostname || 'VPS Node' }}</span>
         </div>
       </div>
 
       <!-- TABS NAVIGATION -->
-      <nav class="flex items-center gap-1 bg-gray-900/80 p-1 rounded-xl border border-gray-800 text-xs">
-        <a href="#overview" @click="currentTab = 'overview'" :class="currentTab === 'overview' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition">
+      <nav class="flex items-center gap-1.5 bg-gray-900/90 p-1 rounded-xl border border-gray-800 text-sm">
+        <a href="#overview" @click="currentTab = 'overview'" :class="currentTab === 'overview' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg transition">
           <i class="fa fa-chart-line mr-1.5"></i> Tổng Quan
         </a>
-        <a href="#nodes" @click="currentTab = 'nodes'" :class="currentTab === 'nodes' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition">
+        <a href="#nodes" @click="currentTab = 'nodes'" :class="currentTab === 'nodes' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg transition">
           <i class="fa fa-cubes mr-1.5"></i> Quản Lý Nodes ({{ nodes.length }})
         </a>
-        <a href="#accounts" @click="currentTab = 'accounts'" :class="currentTab === 'accounts' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'" class="px-3 py-1.5 rounded-lg transition">
+        <a href="#accounts" @click="currentTab = 'accounts'" :class="currentTab === 'accounts' ? 'bg-indigo-600 text-white font-bold' : 'text-gray-400 hover:text-white'" class="px-4 py-2 rounded-lg transition">
           <i class="fa fa-address-book mr-1.5"></i> Sổ Tài Khoản
         </a>
       </nav>
 
       <div class="flex items-center gap-3">
-        <button @click="showImportModal = true" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-xs font-bold rounded-lg text-white shadow-lg transition">
-          <i class="fa fa-plus mr-1"></i> Nhập Batch Proxy
+        <button @click="showImportModal = true" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-sm font-bold rounded-xl text-white shadow-lg transition">
+          <i class="fa fa-plus mr-1.5"></i> Nhập Batch Proxy
         </button>
-        <button @click="handleLogout" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-xs font-medium rounded-lg text-gray-300">
+        <button @click="handleLogout" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 text-sm font-medium rounded-xl text-gray-300 transition">
           <i class="fa fa-sign-out-alt mr-1"></i> Đăng Xuất
         </button>
       </div>
@@ -100,7 +108,7 @@
 
     <main class="max-w-7xl mx-auto px-6 space-y-6 pb-12">
 
-      <!-- ==================== TAB 1: TỔNG QUAN PHẦN CỨNG & BĂNG THÔNG ==================== -->
+      <!-- ==================== TAB 1: TỔNG QUAN ==================== -->
       <section v-if="currentTab === 'overview'" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <!-- CARD BĂNG THÔNG REALTIME -->
@@ -110,14 +118,14 @@
               <span v-if="sys.network?.is_choking" class="text-rose-400 font-extrabold animate-pulse">[NGHẼN MẠNG]</span>
               <span v-else class="text-emerald-400 font-extrabold">[THÔNG SUỐT]</span>
             </div>
-            <div class="text-2xl font-extrabold font-mono text-white mt-3">
-              {{ sys.network?.total_speed_mbps }} <span class="text-xs text-gray-400 font-normal">Mbps</span>
+            <div class="text-3xl font-extrabold font-mono text-white mt-3">
+              {{ sys.network?.total_speed_mbps }} <span class="text-sm text-gray-400 font-normal">Mbps</span>
             </div>
             <div class="flex justify-between text-xs text-gray-400 mt-2 font-mono">
               <span>↓ Tải xuống: {{ sys.network?.rx_speed_mbps }} Mbps</span>
               <span>↑ Tải lên: {{ sys.network?.tx_speed_mbps }} Mbps</span>
             </div>
-            <div class="text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-800">
+            <div class="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-800">
               Drops: <b :class="sys.network?.packet_drops > 0 ? 'text-rose-400' : 'text-gray-400'">{{ sys.network?.packet_drops }}</b> | Conntrack: {{ sys.network?.conntrack_percent }}%
             </div>
           </div>
@@ -126,58 +134,62 @@
           <div class="card-panel p-5 rounded-2xl">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold">CPU LOAD ({{ sys.cpu_cores }} Cores)</span>
-              <span class="font-extrabold text-white">{{ sys.cpu_percent }}%</span>
+              <span class="font-extrabold text-white text-base">{{ sys.cpu_percent }}%</span>
             </div>
             <div class="w-full bg-gray-800 rounded-full h-2 mt-3">
               <div class="bg-indigo-500 h-2 rounded-full transition-all" :style="{ width: sys.cpu_percent + '%' }"></div>
             </div>
-            <div class="text-xs text-gray-400 mt-3">Load avg: {{ sys.load_avg }}</div>
-            <div class="text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-800">Uptime: <b class="text-gray-300">{{ sys.uptime }}</b></div>
+            <div class="text-xs text-gray-400 mt-3 font-mono">Load avg: {{ sys.load_avg }}</div>
+            <div class="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-800">Uptime: <b class="text-gray-300">{{ sys.uptime }}</b></div>
           </div>
 
           <!-- CARD RAM VẬT LÝ -->
           <div class="card-panel p-5 rounded-2xl">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold">RAM VẬT LÝ</span>
-              <span class="font-extrabold text-white">{{ sys.ram_percent }}%</span>
+              <span class="font-extrabold text-white text-base">{{ sys.ram_percent }}%</span>
             </div>
             <div class="w-full bg-gray-800 rounded-full h-2 mt-3">
               <div class="bg-emerald-500 h-2 rounded-full transition-all" :style="{ width: sys.ram_percent + '%' }"></div>
             </div>
             <div class="text-xs text-gray-400 mt-3 font-mono">Dùng: {{ sys.ram_used_mb }} / {{ sys.ram_total_mb }} MB</div>
-            <div class="text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-800">Trống: <b class="text-emerald-400 font-mono">{{ sys.ram_free_mb }} MB</b></div>
+            <div class="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-800">Trống: <b class="text-emerald-400 font-mono">{{ sys.ram_free_mb }} MB</b></div>
           </div>
 
-          <!-- CARD Ổ ĐĨA ROOT -->
+          <!-- CARD Ổ ĐĨA -->
           <div class="card-panel p-5 rounded-2xl">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold">DUNG LƯỢNG ĐĨA</span>
-              <span class="font-extrabold text-white">{{ sys.disk_percent }}%</span>
+              <span class="font-extrabold text-white text-base">{{ sys.disk_percent }}%</span>
             </div>
             <div class="w-full bg-gray-800 rounded-full h-2 mt-3">
               <div class="bg-amber-500 h-2 rounded-full transition-all" :style="{ width: sys.disk_percent + '%' }"></div>
             </div>
             <div class="text-xs text-gray-400 mt-3 font-mono">Dùng: {{ sys.disk_used_mb }} / {{ sys.disk_total_mb }} MB</div>
-            <div class="text-[11px] text-gray-500 mt-2 pt-2 border-t border-gray-800">Swap: <b class="text-gray-300 font-mono">{{ sys.swap_used_mb }} MB ({{ sys.swap_percent }}%)</b></div>
+            <div class="text-xs text-gray-500 mt-2 pt-2 border-t border-gray-800">Swap: <b class="text-gray-300 font-mono">{{ sys.swap_used_mb }} MB ({{ sys.swap_percent }}%)</b></div>
           </div>
         </div>
 
-        <!-- THÔNG SỐ TỔNG HỢP FLEET -->
-        <div class="card-panel p-6 rounded-2xl grid grid-cols-2 md:grid-cols-4 gap-6 text-center">
+        <!-- THỐNG KÊ FLEET SUMMARY -->
+        <div class="card-panel p-6 rounded-2xl grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
           <div>
             <div class="text-xs text-gray-400 font-bold uppercase">Tổng Số Node</div>
             <div class="text-3xl font-extrabold text-white mt-1">{{ nodes.length }}</div>
           </div>
           <div>
-            <div class="text-xs text-gray-400 font-bold uppercase">Đang Online (Running)</div>
+            <div class="text-xs text-gray-400 font-bold uppercase">Đang Online</div>
             <div class="text-3xl font-extrabold text-emerald-400 mt-1">{{ runningCount }}</div>
           </div>
           <div>
-            <div class="text-xs text-gray-400 font-bold uppercase">Đang Dừng (Stopped)</div>
-            <div class="text-3xl font-extrabold text-gray-400 mt-1">{{ nodes.length - runningCount }}</div>
+            <div class="text-xs text-gray-400 font-bold uppercase">Proxy Live</div>
+            <div class="text-3xl font-extrabold text-blue-400 mt-1">{{ liveCount }}</div>
           </div>
           <div>
-            <div class="text-xs text-gray-400 font-bold uppercase">Tổng Lưu Lượng Kéo</div>
+            <div class="text-xs text-gray-400 font-bold uppercase">Proxy Dead</div>
+            <div class="text-3xl font-extrabold text-rose-400 mt-1">{{ deadCount }}</div>
+          </div>
+          <div>
+            <div class="text-xs text-gray-400 font-bold uppercase">Tổng Data Kéo</div>
             <div class="text-3xl font-extrabold text-amber-400 mt-1 font-mono">{{ totalTrafficGb }} <span class="text-sm font-normal">GB</span></div>
           </div>
         </div>
@@ -185,22 +197,32 @@
 
       <!-- ==================== TAB 2: QUẢN LÝ TỪNG NODE (FLEET NODES) ==================== -->
       <section v-if="currentTab === 'nodes'" class="space-y-4">
-        <!-- FILTER & ACTION BAR -->
+        <!-- BẢNG ĐIỀU KHIỂN & NÚT CHỨC NĂNG -->
         <div class="card-panel p-4 rounded-2xl space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-4">
-            <div class="flex items-center gap-3">
+            <div class="flex flex-wrap items-center gap-2.5">
+              <button @click="checkAllLive" :disabled="checkLoading" class="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-xs font-bold rounded-xl text-white transition flex items-center gap-1.5">
+                <i :class="checkLoading ? 'fa fa-spinner fa-spin' : 'fa fa-satellite-dish'"></i>
+                <span>Check Live Toàn Bộ</span>
+              </button>
+              <button @click="deleteDeadNodes" :disabled="deadCount === 0" class="px-3.5 py-2 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 disabled:opacity-30 text-rose-300 text-xs font-bold rounded-xl transition">
+                <i class="fa fa-filter mr-1"></i> Xóa Node Dead ({{ deadCount }})
+              </button>
               <button @click="startSelected" :disabled="selectedIds.length === 0" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-xs font-bold rounded-xl text-white transition">
-                <i class="fa fa-play mr-1.5"></i> Bật Đã Chọn ({{ selectedIds.length }})
+                <i class="fa fa-play mr-1"></i> Bật Đã Chọn ({{ selectedIds.length }})
               </button>
               <button @click="stopSelected" :disabled="selectedIds.length === 0" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-xs font-bold rounded-xl text-white transition">
-                <i class="fa fa-stop mr-1.5"></i> Tắt Đã Chọn ({{ selectedIds.length }})
+                <i class="fa fa-stop mr-1"></i> Tắt Đã Chọn ({{ selectedIds.length }})
+              </button>
+              <button @click="deleteSelected" :disabled="selectedIds.length === 0" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-xs font-bold rounded-xl text-white transition">
+                <i class="fa fa-trash mr-1"></i> Xóa Đã Chọn
               </button>
               <button @click="loadNodes" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-xs font-medium rounded-xl text-gray-300">
-                <i class="fa fa-sync-alt mr-1"></i> Làm mới
+                <i class="fa fa-sync-alt"></i>
               </button>
             </div>
             <div class="text-xs text-gray-400">
-              Hiển thị: <b class="text-white">{{ filteredNodes.length }}</b> / {{ nodes.length }} nodes
+              Đang hiển thị: <b class="text-white">{{ filteredNodes.length }}</b> / {{ nodes.length }} nodes
             </div>
           </div>
 
@@ -208,7 +230,7 @@
           <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs pt-3 border-t border-gray-800">
             <div>
               <label class="text-gray-400 block mb-1">Lọc Platform</label>
-              <select v-model="filterPlatform" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+              <select v-model="filterPlatform" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
                 <option value="">-- Tất cả Platform --</option>
                 <option value="traffmonetizer">Traffmonetizer</option>
                 <option value="honeygain">Honeygain</option>
@@ -219,58 +241,75 @@
             </div>
             <div>
               <label class="text-gray-400 block mb-1">Lọc Account Label</label>
-              <input v-model="filterAccount" placeholder="Tìm kiếm theo mã account..." class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+              <input v-model="filterAccount" placeholder="Tìm kiếm theo mã account..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
             </div>
             <div>
               <label class="text-gray-400 block mb-1">Lọc Provider</label>
-              <input v-model="filterProvider" placeholder="Decodo, Webshare..." class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+              <input v-model="filterProvider" placeholder="Decodo, Webshare..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
             </div>
             <div>
               <label class="text-gray-400 block mb-1">Lọc Trạng Thái</label>
-              <select v-model="filterStatus" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
-                <option value="">-- Tất cả --</option>
+              <select v-model="filterStatus" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+                <option value="">-- Tất cả Trạng Thái --</option>
                 <option value="running">Đang chạy (Running)</option>
                 <option value="stopped">Đã dừng (Stopped)</option>
+                <option value="live">Proxy Live</option>
+                <option value="dead">Proxy Dead</option>
               </select>
             </div>
           </div>
         </div>
 
-        <!-- TABLE QUẢN LÝ PROFILE NODES -->
-        <div class="card-panel rounded-2xl overflow-hidden border border-gray-800">
+        <!-- BẢNG DANH SÁCH NODES -->
+        <div class="card-panel rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
               <thead>
-                <tr class="bg-gray-900/70 border-b border-gray-800 text-gray-400 font-bold uppercase text-[11px]">
+                <tr class="bg-gray-900/80 border-b border-gray-800 text-gray-400 font-bold uppercase text-[11px]">
                   <th class="p-3.5 w-10"><input type="checkbox" @change="toggleSelectAll" class="rounded bg-gray-800 border-gray-700"></th>
                   <th class="p-3.5">Device Name</th>
                   <th class="p-3.5">Mã Account</th>
                   <th class="p-3.5">Platform</th>
                   <th class="p-3.5">Provider</th>
                   <th class="p-3.5">Proxy Endpoint</th>
+                  <th class="p-3.5">Proxy Live (Ping)</th>
                   <th class="p-3.5">Lưu Lượng Kéo (Zero-Probe)</th>
                   <th class="p-3.5">Sockets</th>
                   <th class="p-3.5">Trạng Thái</th>
                   <th class="p-3.5 text-right">Thao Tác</th>
                 </tr>
               </thead>
-              <tbody class="divide-y divide-gray-800/60">
+              <tbody class="divide-y divide-gray-800/60 font-sans">
                 <tr v-for="n in filteredNodes" :key="n.id" class="hover:bg-gray-800/30 transition">
                   <td class="p-3.5"><input type="checkbox" :value="n.id" v-model="selectedIds" class="rounded bg-gray-800 border-gray-700"></td>
-                  <td class="p-3.5 font-mono font-bold text-amber-300">{{ n.device_name }}</td>
+                  <td class="p-3.5 font-mono font-bold text-amber-300 text-xs">{{ n.device_name }}</td>
                   <td class="p-3.5 font-bold text-indigo-300">{{ n.account_name }}</td>
                   <td class="p-3.5">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-950 text-indigo-400 border border-indigo-800">
+                    <span class="px-2.5 py-1 rounded text-[11px] font-bold uppercase bg-indigo-950 text-indigo-400 border border-indigo-800">
                       {{ n.platform }}
                     </span>
                   </td>
-                  <td class="p-3.5 text-gray-400">{{ n.provider }}</td>
+                  <td class="p-3.5 text-gray-400 font-medium">{{ n.provider }}</td>
                   <td class="p-3.5 font-mono text-gray-300">
                     <span :class="n.protocol === 'socks5' ? 'text-emerald-400' : 'text-blue-400'" class="font-bold text-[10px] uppercase mr-1">[{{ n.protocol }}]</span>
                     {{ n.endpoint }}
                   </td>
+                  <!-- CỘT CHECK LIVE & PING MS TỪ IP GỐC -->
                   <td class="p-3.5 font-mono">
-                    <span class="text-white font-bold">{{ n.traffic_gb }} GB</span>
+                    <div class="flex items-center gap-1.5">
+                      <span v-if="n.is_live" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> LIVE ({{ n.ping_ms }}ms)
+                      </span>
+                      <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> DEAD
+                      </span>
+                      <button @click="checkSingleNode(n.id)" class="text-gray-500 hover:text-indigo-400 text-xs ml-1" title="Check Live Ngay">
+                        <i class="fa fa-redo"></i>
+                      </button>
+                    </div>
+                  </td>
+                  <td class="p-3.5 font-mono">
+                    <span class="text-white font-bold text-xs">{{ n.traffic_gb }} GB</span>
                     <span class="text-gray-500 text-[10px] ml-1">({{ n.traffic_mb }} MB)</span>
                   </td>
                   <td class="p-3.5 font-mono">
@@ -284,14 +323,14 @@
                     <span v-else class="text-gray-500 font-medium">STOPPED</span>
                   </td>
                   <td class="p-3.5 text-right space-x-1.5">
-                    <button v-if="n.status !== 'running'" @click="startNode(n.id)" class="px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-lg text-[11px]" title="Bật Node"><i class="fa fa-play"></i></button>
-                    <button v-else @click="stopNode(n.id)" class="px-2.5 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg text-[11px]" title="Tắt Node"><i class="fa fa-stop"></i></button>
-                    <button @click="openEditModal(n)" class="px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-[11px]" title="Sửa Proxy/Device"><i class="fa fa-edit"></i></button>
-                    <button @click="deleteNode(n.id)" class="px-2.5 py-1 bg-rose-900/60 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-[11px]" title="Xóa Node"><i class="fa fa-trash"></i></button>
+                    <button v-if="n.status !== 'running'" @click="startNode(n.id)" class="px-2.5 py-1.5 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-lg text-xs" title="Bật Node"><i class="fa fa-play"></i></button>
+                    <button v-else @click="stopNode(n.id)" class="px-2.5 py-1.5 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg text-xs" title="Tắt Node"><i class="fa fa-stop"></i></button>
+                    <button @click="openEditModal(n)" class="px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs" title="Sửa Proxy/Device"><i class="fa fa-edit"></i></button>
+                    <button @click="deleteNode(n.id)" class="px-2.5 py-1.5 bg-rose-900/60 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs" title="Xóa Node"><i class="fa fa-trash"></i></button>
                   </td>
                 </tr>
                 <tr v-if="filteredNodes.length === 0">
-                  <td colspan="10" class="p-8 text-center text-gray-500">Chưa có node nào phù hợp. Hãy bấm "Nhập Batch Proxy" để thêm node!</td>
+                  <td colspan="11" class="p-10 text-center text-gray-500 text-sm">Chưa có node nào phù hợp. Hãy bấm "Nhập Batch Proxy" để thêm node mới!</td>
                 </tr>
               </tbody>
             </table>
@@ -304,7 +343,7 @@
         <div class="card-panel p-6 rounded-2xl flex justify-between items-center">
           <div>
             <h2 class="text-base font-bold text-white">Sổ Quản Lý Tài Khoản (Platform Accounts)</h2>
-            <p class="text-xs text-gray-400 mt-1">Các tài khoản/Token bạn đã nhập sẽ tự động lưu tại đây để bạn tái sử dụng nhanh khi nạp thêm proxy mới.</p>
+            <p class="text-xs text-gray-400 mt-1">Các tài khoản và Token bạn đã dùng sẽ tự động lưu lại ở đây để bạn tái sử dụng nhanh khi nạp thêm các lô proxy mới.</p>
           </div>
         </div>
 
@@ -319,12 +358,12 @@
               <div v-if="acc.email" class="truncate">Email: <span class="text-gray-300">{{ acc.email }}</span></div>
             </div>
             <div class="pt-2 border-t border-gray-800 flex justify-end">
-              <button @click="deleteAccount(acc.id)" class="px-2.5 py-1 bg-rose-900/50 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-[11px]">
-                <i class="fa fa-trash mr-1"></i> Xóa Lưu Trữ
+              <button @click="deleteAccount(acc.id)" class="px-3 py-1 bg-rose-900/50 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs">
+                <i class="fa fa-trash mr-1"></i> Xóa Khỏi Sổ
               </button>
             </div>
           </div>
-          <div v-if="accounts.length === 0" class="col-span-3 card-panel p-8 rounded-2xl text-center text-gray-500 text-xs">
+          <div v-if="accounts.length === 0" class="col-span-3 card-panel p-10 rounded-2xl text-center text-gray-500 text-sm">
             Chưa có tài khoản nào được lưu. Khi bạn nạp batch proxy mới, tài khoản sẽ tự động lưu vào đây.
           </div>
         </div>
@@ -335,31 +374,31 @@
 
   <!-- ==================== MODAL NHẬP BATCH PROXY ==================== -->
   <div v-if="showImportModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
-    <div class="card-panel w-full max-w-2xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl">
+    <div class="card-panel w-full max-w-2xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-sm">
       <div class="flex justify-between items-center pb-3 border-b border-gray-800">
-        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
           <i class="fa fa-layer-group text-indigo-400"></i> Khởi Tạo Batch Node Mới (1 TUN = 1 Platform)
         </h3>
         <button @click="showImportModal = false" class="text-gray-500 hover:text-gray-300"><i class="fa fa-times"></i></button>
       </div>
 
       <!-- CHỌN SẴN TỪ SỔ TÀI KHOẢN -->
-      <div v-if="accounts.length > 0" class="text-xs">
-        <label class="text-gray-400 block mb-1">Hoặc Chọn Nhanh Tài Khoản Đã Lưu:</label>
-        <select @change="pickSavedAccount($event)" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+      <div v-if="accounts.length > 0">
+        <label class="text-gray-400 block mb-1 text-xs">Hoặc Chọn Nhanh Tài Khoản Đã Lưu Trong Sổ:</label>
+        <select @change="pickSavedAccount($event)" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
           <option value="">-- Tự nhập tài khoản mới bên dưới --</option>
           <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.account_name }} ({{ a.platform }})</option>
         </select>
       </div>
 
-      <div class="grid grid-cols-2 gap-3 text-xs">
+      <div class="grid grid-cols-2 gap-3.5">
         <div>
-          <label class="text-gray-400 block mb-1">Mã Tên Account (Để quản trị)</label>
-          <input v-model="form.account_name" placeholder="VD: Traff_VIP_01..." class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Mã Tên Account (Để quản lý)</label>
+          <input v-model="form.account_name" placeholder="VD: Traff_VIP_01..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
         </div>
         <div>
-          <label class="text-gray-400 block mb-1">Chọn Duy Nhất 1 Platform</label>
-          <select v-model="form.platform" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-bold outline-none">
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Chọn Duy Nhất 1 Platform</label>
+          <select v-model="form.platform" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white font-bold outline-none">
             <option value="traffmonetizer">Traffmonetizer</option>
             <option value="honeygain">Honeygain</option>
             <option value="pawns">Pawns (IPRoyal)</option>
@@ -368,65 +407,65 @@
           </select>
         </div>
         <div>
-          <label class="text-gray-400 block mb-1">Nhà Cung Cấp Proxy (Provider)</label>
-          <input v-model="form.provider" placeholder="VD: Decodo, Webshare..." class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Nhà Cung Cấp Proxy (Provider)</label>
+          <input v-model="form.provider" placeholder="VD: Decodo, Webshare..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
         </div>
         <div>
-          <label class="text-gray-400 block mb-1">Tiền tố Device Name (Để trống sẽ sinh mã 8 ký tự tĩnh)</label>
-          <input v-model="form.prefix" placeholder="VD: node, vps01 (hoặc để trống)" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Tiền tố Device Name (Để trống sẽ tự sinh mã 8 ký tự tĩnh)</label>
+          <input v-model="form.prefix" placeholder="VD: node, vps01 (hoặc để trống)" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
         </div>
       </div>
 
       <!-- CREDENTIALS CHO BATCH NÀY -->
-      <div class="bg-gray-900/80 p-3.5 rounded-xl border border-gray-800 text-xs space-y-2">
-        <div class="font-bold text-indigo-300">Thông tin Xác thực Tài khoản:</div>
+      <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 space-y-2">
+        <div class="font-bold text-indigo-300 text-xs uppercase">Thông tin Xác thực Tài khoản:</div>
         <div v-if="form.platform === 'traffmonetizer'">
-          <label class="text-gray-400 block mb-1">Traffmonetizer Token</label>
-          <input v-model="form.token" placeholder="Dán token Traffmonetizer tại đây..." class="w-full bg-black border border-gray-700 rounded-lg p-2 text-white outline-none font-mono">
+          <label class="text-gray-400 block mb-1 text-xs">Traffmonetizer Token</label>
+          <input v-model="form.token" placeholder="Dán token Traffmonetizer tại đây..." class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs">
         </div>
         <div v-if="form.platform === 'repocket'" class="grid grid-cols-2 gap-2">
-          <div><label class="text-gray-400 block mb-1">Email</label><input v-model="form.email" class="w-full bg-black border border-gray-700 rounded-lg p-2 text-white outline-none"></div>
-          <div><label class="text-gray-400 block mb-1">API Key</label><input v-model="form.token" class="w-full bg-black border border-gray-700 rounded-lg p-2 text-white outline-none font-mono"></div>
+          <div><label class="text-gray-400 block mb-1 text-xs">Email</label><input v-model="form.email" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs"></div>
+          <div><label class="text-gray-400 block mb-1 text-xs">API Key</label><input v-model="form.token" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs"></div>
         </div>
         <div v-if="['honeygain', 'pawns', 'bitping'].includes(form.platform)" class="grid grid-cols-2 gap-2">
-          <div><label class="text-gray-400 block mb-1">Email</label><input v-model="form.email" class="w-full bg-black border border-gray-700 rounded-lg p-2 text-white outline-none"></div>
-          <div><label class="text-gray-400 block mb-1">Mật khẩu</label><input type="password" v-model="form.password" class="w-full bg-black border border-gray-700 rounded-lg p-2 text-white outline-none"></div>
+          <div><label class="text-gray-400 block mb-1 text-xs">Email</label><input v-model="form.email" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs"></div>
+          <div><label class="text-gray-400 block mb-1 text-xs">Mật khẩu</label><input type="password" v-model="form.password" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs"></div>
         </div>
       </div>
 
       <div>
-        <label class="text-xs text-gray-400 block mb-1">Danh Sách Proxy (Hỗ trợ định dạng host:port:user:pass hoặc proxy|device_name)</label>
-        <textarea v-model="form.proxies_raw" rows="5" placeholder="isp.decodo.com:10010:user:pass&#10;isp.decodo.com:10011:user:pass|custom_dev_01" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2.5 text-xs font-mono text-white outline-none"></textarea>
+        <label class="text-gray-400 block mb-1 text-xs font-semibold">Danh Sách Proxy (Hỗ trợ isp.decodo.com:10010:user:pass hoặc proxy|device_name)</label>
+        <textarea v-model="form.proxies_raw" rows="5" placeholder="isp.decodo.com:10010:user:pass&#10;isp.decodo.com:10011:user:pass|custom_dev_01" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 font-mono text-white outline-none text-xs"></textarea>
       </div>
 
-      <div class="flex justify-end gap-2 text-xs pt-2">
-        <button @click="showImportModal = false" class="px-4 py-2 bg-gray-800 rounded-lg text-gray-300">Hủy</button>
-        <button @click="submitImport" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-lg text-white transition">Xác Nhận Khởi Tạo Batch</button>
+      <div class="flex justify-end gap-2.5 pt-2">
+        <button @click="showImportModal = false" class="px-4 py-2.5 bg-gray-800 rounded-xl text-gray-300 font-medium">Hủy</button>
+        <button @click="submitImport" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white transition">Xác Nhận Khởi Tạo Batch</button>
       </div>
     </div>
   </div>
 
   <!-- ==================== MODAL SỬA PROXY LẺ ==================== -->
   <div v-if="showEditModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
-    <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-3 text-xs border border-gray-800 shadow-2xl">
-      <h3 class="text-sm font-bold text-white flex items-center gap-2">
+    <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-3.5 border border-gray-800 shadow-2xl text-sm">
+      <h3 class="text-base font-bold text-white flex items-center gap-2">
         <i class="fa fa-edit text-amber-400"></i> Chỉnh Sửa Node {{ editNodeData.device_name }}
       </h3>
       <div>
-        <label class="text-gray-400 block mb-1">Device Name</label>
-        <input v-model="editNodeData.device_name" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-mono outline-none">
+        <label class="text-gray-400 block mb-1 text-xs">Device Name</label>
+        <input v-model="editNodeData.device_name" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white font-mono outline-none">
       </div>
       <div>
-        <label class="text-gray-400 block mb-1">Proxy Endpoint</label>
-        <input v-model="editNodeData.proxy_url" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white font-mono outline-none">
+        <label class="text-gray-400 block mb-1 text-xs">Proxy Endpoint</label>
+        <input v-model="editNodeData.proxy_url" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white font-mono outline-none">
       </div>
       <div>
-        <label class="text-gray-400 block mb-1">Provider</label>
-        <input v-model="editNodeData.provider" class="w-full bg-gray-900 border border-gray-700 rounded-lg p-2 text-white outline-none">
+        <label class="text-gray-400 block mb-1 text-xs">Provider</label>
+        <input v-model="editNodeData.provider" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
       </div>
       <div class="flex justify-end gap-2 pt-2">
-        <button @click="showEditModal = false" class="px-3.5 py-2 bg-gray-800 rounded-lg text-gray-300">Đóng</button>
-        <button @click="saveEditNode" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 font-bold rounded-lg text-white transition">Lưu & Hot-Reload</button>
+        <button @click="showEditModal = false" class="px-4 py-2 bg-gray-800 rounded-xl text-gray-300 font-medium">Đóng</button>
+        <button @click="saveEditNode" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 font-bold rounded-xl text-white transition">Lưu & Hot-Reload</button>
       </div>
     </div>
   </div>
@@ -448,6 +487,7 @@ createApp({
     const nodes = ref([]);
     const accounts = ref([]);
     const selectedIds = ref([]);
+    const checkLoading = ref(false);
 
     const showImportModal = ref(false);
     const showEditModal = ref(false);
@@ -536,6 +576,28 @@ createApp({
       if (res.ok) accounts.value = await res.json();
     };
 
+    const checkSingleNode = async (id) => {
+      await fetch(`/api/nodes/${id}/check`, { method: "POST", headers: getAuthHeaders() });
+      loadNodes();
+    };
+
+    const checkAllLive = async () => {
+      checkLoading.value = true;
+      try {
+        await fetch("/api/nodes/check-all", { method: "POST", headers: getAuthHeaders() });
+        await loadNodes();
+      } finally {
+        checkLoading.value = false;
+      }
+    };
+
+    const deleteDeadNodes = async () => {
+      if (confirm(`Bạn có chắc chắn muốn xóa ${deadCount.value} node proxy đã chết?`)) {
+        await fetch("/api/nodes/dead", { method: "DELETE", headers: getAuthHeaders() });
+        loadNodes();
+      }
+    };
+
     const pickSavedAccount = (e) => {
       const id = e.target.value;
       const acc = accounts.value.find(a => a.id === id);
@@ -556,6 +618,9 @@ createApp({
     };
 
     const runningCount = computed(() => nodes.value.filter(n => n.status === "running").length);
+    const liveCount = computed(() => nodes.value.filter(n => n.is_live).length);
+    const deadCount = computed(() => nodes.value.filter(n => !n.is_live).length);
+
     const totalTrafficGb = computed(() => {
       const sum = nodes.value.reduce((acc, n) => acc + (n.traffic_gb || 0), 0);
       return sum.toFixed(2);
@@ -566,7 +631,10 @@ createApp({
         if (filterPlatform.value && n.platform !== filterPlatform.value) return false;
         if (filterAccount.value && !n.account_name.toLowerCase().includes(filterAccount.value.toLowerCase())) return false;
         if (filterProvider.value && !n.provider.toLowerCase().includes(filterProvider.value.toLowerCase())) return false;
-        if (filterStatus.value && n.status !== filterStatus.value) return false;
+        if (filterStatus.value === "running" && n.status !== "running") return false;
+        if (filterStatus.value === "stopped" && n.status !== "stopped") return false;
+        if (filterStatus.value === "live" && !n.is_live) return false;
+        if (filterStatus.value === "dead" && n.is_live) return false;
         return true;
       });
     });
@@ -642,22 +710,34 @@ createApp({
       loadNodes();
     };
 
+    const deleteSelected = async () => {
+      if (confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.value.length} node đã chọn?`)) {
+        await fetch("/api/nodes/bulk/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          body: JSON.stringify(selectedIds.value)
+        });
+        selectedIds.value = [];
+        loadNodes();
+      }
+    };
+
     onMounted(() => {
       checkAuth();
       if (window.location.hash) {
         currentTab.value = window.location.hash.replace("#", "");
       }
       setInterval(loadSys, 3000);
-      setInterval(loadNodes, 10000);
+      setInterval(loadNodes, 12000);
     });
 
     return {
       isLoggedIn, loginLoading, loginError, showPass, loginForm, handleLogin, handleLogout,
-      currentTab, sys, nodes, accounts, filteredNodes, selectedIds, runningCount, totalTrafficGb,
-      filterPlatform, filterAccount, filterProvider, filterStatus,
+      currentTab, sys, nodes, accounts, filteredNodes, selectedIds, runningCount, liveCount, deadCount, totalTrafficGb,
+      filterPlatform, filterAccount, filterProvider, filterStatus, checkLoading,
       showImportModal, showEditModal, form, editNodeData, pickSavedAccount, deleteAccount,
       submitImport, startNode, stopNode, deleteNode, openEditModal, saveEditNode,
-      toggleSelectAll, startSelected, stopSelected, loadNodes
+      toggleSelectAll, startSelected, stopSelected, deleteSelected, loadNodes, checkSingleNode, checkAllLive, deleteDeadNodes
     };
   }
 }).mount("#app");
