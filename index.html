@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bandwidth Fleet Manager — Pro Dashboard v1.6.0</title>
+  <title>Bandwidth Fleet Manager — Pro Dashboard v1.6.1</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -68,7 +68,7 @@
     </div>
   </div>
 
-  <!-- 2. DASHBOARD CHÍNH (ĐẦY ĐỦ 4 TAB) -->
+  <!-- 2. DASHBOARD CHÍNH -->
   <div v-else class="space-y-6">
 
     <!-- TOP NAVBAR -->
@@ -118,7 +118,7 @@
 
     <main class="max-w-7xl mx-auto px-6 space-y-6 pb-12">
 
-      <!-- TAB 1: TỔNG QUAN HỆ THỐNG -->
+      <!-- TAB 1: TỔNG QUAN -->
       <section v-if="currentTab === 'overview'" class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div class="card-panel p-5 rounded-2xl border-l-4" :class="sys.health_score >= 80 ? 'border-emerald-500' : 'border-amber-500'">
@@ -215,7 +215,7 @@
         </div>
       </section>
 
-      <!-- TAB 2: QUẢN LÝ FLEET NODES (ĐẦY ĐỦ 7 PLATFORM) -->
+      <!-- TAB 2: QUẢN LÝ TỪNG NODE (FLEET NODES) -->
       <section v-if="currentTab === 'nodes'" class="space-y-4">
         <div class="card-panel p-4 rounded-2xl space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-4">
@@ -241,6 +241,7 @@
               </button>
             </div>
             
+            <!-- PHÂN TRANG CHUẨN HOÀN TOÀN -->
             <div class="flex items-center gap-3 text-xs text-gray-400">
               <span>Hiển thị:</span>
               <select v-model="pageSize" class="bg-gray-900 border border-gray-700 rounded-lg p-1 text-white outline-none">
@@ -252,977 +253,978 @@
               <span>Trang <b>{{ currentPage }}</b> / {{ totalPages }}</span>
               <div class="flex gap-1">
                 <button @click="currentPage--" :disabled="currentPage <= 1" class="px-2 py-1 bg-gray-800 rounded disabled:opacity-30"><i class="fa fa-chevron-left"></i></button>
-                <button @click="currentPage++" :disabled="currentPage >= totalPages" class="px-2 py-1 bg-gray-800 rounded disabled:opacity-30"><i class="fa fa-chevron-right"></i></<button @click="currentPage++" :disabled="currentPage >= totalPages" class="px-2 py-1 bg-gray-800 rounded disabled:opacity-30"><i class="fa fa-chevron-right"></i></button>
-                      </div>
-                    </div>
-                  </div>
-
-                  <!-- BỘ LỌC TÌM KIẾM ĐẦY ĐỦ 7 PLATFORM -->
-                  <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs pt-3 border-t border-gray-800">
-                    <div>
-                      <label class="text-gray-400 block mb-1">Lọc Platform</label>
-                      <select v-model="filterPlatform" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                        <option value="">-- Tất cả 7 Platform --</option>
-                        <option value="traffmonetizer">Traffmonetizer</option>
-                        <option value="honeygain">Honeygain</option>
-                        <option value="pawns">Pawns (IPRoyal)</option>
-                        <option value="repocket">Repocket</option>
-                        <option value="bitping">Bitping</option>
-                        <option value="earnfm">EarnFM</option>
-                        <option value="packetstream">PacketStream</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label class="text-gray-400 block mb-1">Lọc Account Label</label>
-                      <input v-model="filterAccount" placeholder="Tìm kiếm theo mã account..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                    </div>
-                    <div>
-                      <label class="text-gray-400 block mb-1">Lọc Provider</label>
-                      <input v-model="filterProvider" placeholder="Decodo, Webshare..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                    </div>
-                    <div>
-                      <label class="text-gray-400 block mb-1">Lọc Trạng Thái</label>
-                      <select v-model="filterStatus" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                        <option value="">-- Tất cả Trạng Thái --</option>
-                        <option value="running">Đang chạy (Running)</option>
-                        <option value="stopped">Đã dừng (Stopped)</option>
-                        <option value="live">Proxy Live</option>
-                        <option value="dead">Proxy Dead</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- BẢNG DANH SÁCH NODES CHI TIẾT -->
-                <div class="card-panel rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
-                  <div class="overflow-x-auto">
-                    <table class="w-full text-left text-xs border-collapse">
-                      <thead>
-                        <tr class="bg-gray-900/80 border-b border-gray-800 text-gray-400 font-bold uppercase text-[11px]">
-                          <th class="p-3.5 w-10"><input type="checkbox" @change="toggleSelectAll" class="rounded bg-gray-800 border-gray-700"></th>
-                          <th class="p-3.5">Device Name</th>
-                          <th class="p-3.5">Mã Account</th>
-                          <th class="p-3.5">Platform</th>
-                          <th class="p-3.5">Provider</th>
-                          <th class="p-3.5">Proxy Endpoint</th>
-                          <th class="p-3.5">Proxy Live</th>
-                          <th class="p-3.5">Lưu Lượng Kéo</th>
-                          <th class="p-3.5">Sockets</th>
-                          <th class="p-3.5">Trạng Thái</th>
-                          <th class="p-3.5 text-right">Thao Tác</th>
-                        </tr>
-                      </thead>
-                      <tbody class="divide-y divide-gray-800/60 font-sans">
-                        <tr v-for="n in paginatedNodes" :key="n.id" class="hover:bg-gray-800/30 transition">
-                          <td class="p-3.5"><input type="checkbox" :value="n.id" v-model="selectedIds" class="rounded bg-gray-800 border-gray-700"></td>
-                          <td class="p-3.5 font-mono font-bold text-amber-300 text-xs">{{ n.device_name }}</td>
-                          <td class="p-3.5 font-bold text-indigo-300">{{ n.account_name }}</td>
-                          <td class="p-3.5">
-                            <span class="px-2.5 py-1 rounded text-[11px] font-bold uppercase bg-indigo-950 text-indigo-400 border border-indigo-800">
-                              {{ n.platform }}
-                            </span>
-                          </td>
-                          <td class="p-3.5 text-gray-400 font-medium">{{ n.provider }}</td>
-                          <td class="p-3.5 font-mono text-gray-300">
-                            <span :class="n.protocol === 'socks5' ? 'text-emerald-400' : 'text-blue-400'" class="font-bold text-[10px] uppercase mr-1">[{{ n.protocol }}]</span>
-                            {{ n.endpoint }}
-                          </td>
-                          <td class="p-3.5 font-mono">
-                            <div class="flex items-center gap-1.5">
-                              <span v-if="n.is_live" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> LIVE ({{ n.ping_ms }}ms)
-                              </span>
-                              <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800 flex items-center gap-1">
-                                <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> DEAD
-                              </span>
-                              <button @click="checkSingleNode(n.id)" class="text-gray-500 hover:text-indigo-400 text-xs ml-1" title="Check Live Ngay">
-                                <i class="fa fa-redo"></i>
-                              </button>
-                            </div>
-                          </td>
-                          <td class="p-3.5 font-mono">
-                            <span class="text-white font-bold text-xs">{{ n.traffic_gb }} GB</span>
-                            <span class="text-gray-500 text-[10px] ml-1">({{ n.traffic_mb }} MB)</span>
-                          </td>
-                          <td class="p-3.5 font-mono">
-                            <span v-if="n.sockets > 0" class="text-emerald-400 font-bold">{{ n.sockets }} conns</span>
-                            <span v-else class="text-gray-500">0</span>
-                          </td>
-                          <td class="p-3.5">
-                            <span v-if="n.status === 'running'" class="text-emerald-400 font-bold flex items-center gap-1.5">
-                              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> RUNNING
-                            </span>
-                            <span v-else class="text-gray-500 font-medium">STOPPED</span>
-                          </td>
-                          <td class="p-3.5 text-right space-x-1">
-                            <button v-if="n.status !== 'running'" @click="startNode(n.id)" class="px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-lg text-xs" title="Bật Node"><i class="fa fa-play"></i></button>
-                            <button v-else @click="stopNode(n.id)" class="px-2.5 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg text-xs" title="Tắt Node"><i class="fa fa-stop"></i></button>
-                            <button @click="openLogsModal(n)" class="px-2.5 py-1 bg-indigo-900/60 hover:bg-indigo-700 text-indigo-300 hover:text-white rounded-lg text-xs" title="Xem Log Container"><i class="fa fa-terminal"></i></button>
-                            <button @click="openEditModal(n)" class="px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs" title="Sửa Proxy"><i class="fa fa-edit"></i></button>
-                            <button @click="triggerDeleteNode(n)" class="px-2.5 py-1 bg-rose-900/60 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs" title="Xóa Node"><i class="fa fa-trash"></i></button>
-                          </td>
-                        </tr>
-                        <tr v-if="filteredNodes.length === 0">
-                          <td colspan="11" class="p-10 text-center text-gray-500 text-sm">Chưa có node nào phù hợp.</td>
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </section>
-
-              <!-- TAB 3: SỔ TÀI KHOẢN (ACCOUNTS BOOK) -->
-              <section v-if="currentTab === 'accounts'" class="space-y-4">
-                <div class="card-panel p-6 rounded-2xl flex justify-between items-center">
-                  <div>
-                    <h2 class="text-base font-bold text-white">Sổ Quản Lý Tài Khoản (Platform Accounts)</h2>
-                    <p class="text-xs text-gray-400 mt-1">Các tài khoản và Token bạn đã dùng sẽ tự động lưu lại ở đây để bạn tái sử dụng nhanh khi nạp thêm các lô proxy mới.</p>
-                  </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div v-for="acc in accounts" :key="acc.id" class="card-panel p-5 rounded-2xl space-y-3 border-l-4 border-indigo-500">
-                    <div class="flex justify-between items-center">
-                      <span class="font-extrabold text-white text-sm">{{ acc.account_name }}</span>
-                      <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-950 text-indigo-400 border border-indigo-800">{{ acc.platform }}</span>
-                    </div>
-                    <div class="text-xs space-y-1 font-mono text-gray-400">
-                      <div v-if="acc.token" class="truncate">Token/CID: <span class="text-gray-300">{{ acc.token }}</span></div>
-                      <div v-if="acc.email" class="truncate">Email: <span class="text-gray-300">{{ acc.email }}</span></div>
-                    </div>
-                    <div class="pt-2 border-t border-gray-800 flex justify-end">
-                      <button @click="triggerDeleteAccount(acc)" class="px-3 py-1 bg-rose-900/50 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs">
-                        <i class="fa fa-trash mr-1"></i> Xóa Khỏi Sổ
-                      </button>
-                    </div>
-                  </div>
-                  <div v-if="accounts.length === 0" class="col-span-3 card-panel p-10 rounded-2xl text-center text-gray-500 text-sm">
-                    Chưa có tài khoản nào được lưu.
-                  </div>
-                </div>
-              </section>
-
-              <!-- TAB 4: BẢNG CÀI ĐẶT & SYSTEM AUDIT -->
-              <section v-if="currentTab === 'settings'" class="space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="card-panel p-6 rounded-2xl space-y-4">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                      <i class="fa fa-tag text-indigo-400"></i> Đặt Tên Định Danh Cho VPS
-                    </h3>
-                    <p class="text-xs text-gray-400">Tên này sẽ xuất hiện trên thanh tiêu đề và Header của Dashboard để bạn mở nhiều tab trình duyệt mà không bị nhầm lẫn.</p>
-                    <div class="flex gap-2">
-                      <input v-model="vpsAliasInput" placeholder="Ví dụ: OVH_CA_02..." class="flex-1 bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs">
-                      <button @click="saveVpsAlias" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white text-xs">Lưu Tên</button>
-                    </div>
-                  </div>
-
-                  <div class="card-panel p-6 rounded-2xl space-y-4">
-                    <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                      <i class="fa fa-key text-amber-400"></i> Đổi Mật Khẩu Quản Trị Web
-                    </h3>
-                    <div class="grid grid-cols-2 gap-2 text-xs">
-                      <input v-model="passForm.old_password" type="password" placeholder="Mật khẩu hiện tại..." class="bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                      <input v-model="passForm.new_password" type="password" placeholder="Mật khẩu mới (≥6 ký tự)..." class="bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                    </div>
-                    <div class="flex justify-end">
-                      <button @click="submitChangePassword" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 font-bold rounded-xl text-white text-xs">Xác Nhận Đổi Mật Khẩu</button>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- BẢNG SYSTEM AUDIT -->
-                <div class="card-panel p-6 rounded-2xl space-y-4">
-                  <div class="flex justify-between items-center">
-                    <div>
-                      <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                        <i class="fa fa-clipboard-check text-emerald-400"></i> Bảng Rà Soát Thông Số & Tính Năng Hệ Thống (System Audit)
-                      </h3>
-                      <p class="text-xs text-gray-400 mt-1">Kiểm tra toàn bộ các tham số hạt nhân Kernel, module mạng và độ an toàn phần cứng.</p>
-                    </div>
-                    <button @click="loadAuditWithFeedback" :disabled="auditLoading" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-xs font-semibold text-gray-300 flex items-center gap-1.5 transition">
-                      <i :class="auditLoading ? 'fa fa-spinner fa-spin' : 'fa fa-sync-alt'"></i>
-                      <span>Quét lại</span>
-                    </button>
-                  </div>
-
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    <div v-for="item in auditItems" :key="item.name" class="p-3.5 bg-gray-900/60 rounded-xl border border-gray-800 flex items-center justify-between">
-                      <div>
-                        <div class="font-bold text-gray-200">{{ item.name }}</div>
-                        <div class="text-[11px] text-gray-400 mt-0.5">{{ item.detail }}</div>
-                      </div>
-                      <div class="flex items-center gap-2">
-                        <button v-if="item.can_fix" @click="fixZram" class="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold">
-                          Bật ZRAM Ngay
-                        </button>
-                        <span v-if="item.status" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
-                          <i class="fa fa-check"></i> ĐẠT CHUẨN
-                        </span>
-                        <span v-else class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800 flex items-center gap-1">
-                          <i class="fa fa-times"></i> CẢNH BÁO
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- CÁC TÁC VỤ KIỂM SOÁT SÂU (DEEP CONTROL) -->
-                <div class="card-panel p-6 rounded-2xl space-y-4">
-                  <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                    <i class="fa fa-cogs text-indigo-400"></i> Các Tác Vụ Kiểm Soát Sâu VPS (Deep Control Actions)
-                  </h3>
-                  <div class="flex flex-wrap gap-3">
-                    <button @click="triggerCleanRam" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
-                      <i class="fa fa-broom text-amber-400"></i> Dọn Rác & Cache RAM (Drop Caches)
-                    </button>
-                    <button @click="triggerPruneDocker" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
-                      <i class="fa fa-dumpster text-blue-400"></i> Dọn Rác Docker (Prune Containers/Images)
-                    </button>
-                    <button @click="triggerRebootVps" class="px-4 py-2.5 bg-rose-950 hover:bg-rose-900 border border-rose-800 font-bold rounded-xl text-rose-300 text-xs flex items-center gap-2">
-                      <i class="fa fa-power-off text-rose-400"></i> Khởi Động Lại VPS An Toàn (Graceful Reboot)
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-            </main>
-          </div>
-
-          <!-- MODAL XÁC NHẬN CHUẨN ĐẸP GIỮA MÀN HÌNH -->
-          <div v-if="confirmDialog.show" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
-            <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-center">
-              <div class="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-2xl" :class="confirmDialog.iconBg">
-                <i :class="confirmDialog.icon"></i>
-              </div>
-              <div>
-                <h3 class="text-base font-bold text-white">{{ confirmDialog.title }}</h3>
-                <p class="text-xs text-gray-400 mt-1.5 leading-relaxed">{{ confirmDialog.message }}</p>
-              </div>
-              <div class="flex justify-center gap-3 pt-2">
-                <button @click="confirmDialog.show = false" class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 font-medium rounded-xl text-gray-300 text-xs">
-                  Hủy Bỏ
-                </button>
-                <button @click="executeConfirmAction" :class="confirmDialog.btnColor" class="px-5 py-2.5 font-bold rounded-xl text-white text-xs transition">
-                  {{ confirmDialog.btnText }}
-                </button>
+                <button @click="currentPage++" :disabled="currentPage >= totalPages" class="px-2 py-1 bg-gray-800 rounded disabled:opacity-30"><i class="fa fa-chevron-right"></i></button>
               </div>
             </div>
           </div>
 
-          <!-- MODAL XEM LOG CONTAINER -->
-          <div v-if="showLogsModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
-            <div class="card-panel w-full max-w-4xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-xs">
-              <div class="flex justify-between items-center pb-3 border-b border-gray-800">
-                <div>
-                  <h3 class="text-sm font-bold text-white flex items-center gap-2">
-                    <i class="fa fa-terminal text-indigo-400"></i> Nhật Ký Hoạt Động Node: {{ activeLogNode.device_name }} ({{ activeLogNode.platform }})
-                  </h3>
-                  <span class="text-[11px] text-gray-400 font-mono">Proxy: {{ activeLogNode.endpoint }}</span>
-                </div>
-                <div class="flex items-center gap-2">
-                  <button @click="fetchLogs(activeLogNode.id)" :disabled="logLoading" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs flex items-center gap-1">
-                    <i :class="logLoading ? 'fa fa-spinner fa-spin' : 'fa fa-sync-alt'"></i> Làm mới log
-                  </button>
-                  <button @click="showLogsModal = false" class="text-gray-500 hover:text-gray-300 text-base"><i class="fa fa-times"></i></button>
-                </div>
-              </div>
-
-              <div class="flex gap-2 border-b border-gray-800 pb-2">
-                <button @click="logTab = 'app'" :class="logTab === 'app' ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-900 text-gray-400'" class="px-3 py-1.5 rounded-lg transition">
-                  Log Ứng Dụng ({{ activeLogNode.platform }})
-                </button>
-                <button @click="logTab = 'tun'" :class="logTab === 'tun' ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-900 text-gray-400'" class="px-3 py-1.5 rounded-lg transition">
-                  Log Tunnel (tun2proxy)
-                </button>
-              </div>
-
-              <div class="bg-black/90 p-4 rounded-xl border border-gray-800 font-mono text-[11px] h-96 overflow-y-auto leading-relaxed text-gray-300 select-text whitespace-pre-wrap">
-                <div v-if="logLoading" class="text-center py-12 text-gray-500"><i class="fa fa-spinner fa-spin mr-2"></i> Đang tải log từ container...</div>
-                <div v-else-if="logTab === 'app'">{{ nodeLogs.app_logs || 'Chưa có log từ ứng dụng.' }}</div>
-                <div v-else>{{ nodeLogs.tun_logs || 'Chưa có log từ tunnel.' }}</div>
-              </div>
+          <!-- BỘ LỌC ĐẦY ĐỦ 7 PLATFORMS -->
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs pt-3 border-t border-gray-800">
+            <div>
+              <label class="text-gray-400 block mb-1">Lọc Platform</label>
+              <select v-model="filterPlatform" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+                <option value="">-- Tất cả 7 Platform --</option>
+                <option value="traffmonetizer">Traffmonetizer</option>
+                <option value="honeygain">Honeygain</option>
+                <option value="pawns">IPRoyal Pawns</option>
+                <option value="repocket">Repocket</option>
+                <option value="bitping">Bitping</option>
+                <option value="earnfm">EarnFM</option>
+                <option value="packetstream">PacketStream</option>
+              </select>
+            </div>
+            <div>
+              <label class="text-gray-400 block mb-1">Lọc Account Label</label>
+              <input v-model="filterAccount" placeholder="Tìm kiếm theo mã account..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+            </div>
+            <div>
+              <label class="text-gray-400 block mb-1">Lọc Provider</label>
+              <input v-model="filterProvider" placeholder="Decodo, Webshare..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+            </div>
+            <div>
+              <label class="text-gray-400 block mb-1">Lọc Trạng Thái</label>
+              <select v-model="filterStatus" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+                <option value="">-- Tất cả Trạng Thái --</option>
+                <option value="running">Đang chạy (Running)</option>
+                <option value="stopped">Đã dừng (Stopped)</option>
+                <option value="live">Proxy Live</option>
+                <option value="dead">Proxy Dead</option>
+              </select>
             </div>
           </div>
-
-          <!-- MODAL CẬP NHẬT OTA -->
-          <div v-if="showOtaModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
-            <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-xs">
-              <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <i class="fa fa-cloud-download-alt text-emerald-400"></i> Phát Hiện Phiên Bản Mới Trên GitHub!
-              </h3>
-              <div class="space-y-2 bg-gray-900/80 p-3.5 rounded-xl border border-gray-800 font-mono">
-                <div>Commit hiện tại: <b class="text-gray-400">{{ otaInfo.local_sha }}</b></div>
-                <div>Commit mới nhất: <b class="text-emerald-400">{{ otaInfo.remote_sha }}</b></div>
-                <div class="text-[11px] text-gray-300 pt-1 border-t border-gray-800">Nội dung: {{ otaInfo.message }}</div>
-              </div>
-              <div class="p-2.5 bg-blue-950/40 border border-blue-800/60 rounded-xl text-blue-300 text-[11px]">
-                <i class="fa fa-shield-alt mr-1"></i> <b>Cam kết không rớt mạng:</b> Cập nhật chỉ khởi động lại giao diện Web, <b>KHÔNG ngắt kết nối các container proxy đang cày</b>.
-              </div>
-              <div class="flex justify-end gap-2 pt-2">
-                <button @click="showOtaModal = false" class="px-4 py-2 bg-gray-800 rounded-xl text-gray-300">Để Sau</button>
-                <button @click="applyOtaUpdate" :disabled="otaUpdating" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 font-bold rounded-xl text-white flex items-center gap-1.5">
-                  <span v-if="otaUpdating" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  <span>Xác Nhận Cập Nhật Ngay</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- MODAL NHẬP BATCH PROXY (HỖ TRỢ ĐỦ 7 PLATFORM) -->
-          <div v-if="showImportModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
-            <div class="card-panel w-full max-w-2xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-sm">
-              <div class="flex justify-between items-center pb-3 border-b border-gray-800">
-                <h3 class="text-base font-bold text-white flex items-center gap-2">
-                  <i class="fa fa-layer-group text-indigo-400"></i> Khởi Tạo Batch Node Mới (1 TUN = 1 Platform)
-                </h3>
-                <button @click="showImportModal = false" class="text-gray-500 hover:text-gray-300"><i class="fa fa-times"></i></button>
-              </div>
-
-              <div v-if="accounts.length > 0">
-                <label class="text-gray-400 block mb-1 text-xs">Hoặc Chọn Nhanh Tài Khoản Đã Lưu Trong Sổ:</label>
-                <select @change="pickSavedAccount($event)" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                  <option value="">-- Tự nhập tài khoản mới bên dưới --</option>
-                  <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.account_name }} ({{ a.platform }})</option>
-                </select>
-              </div>
-
-              <div class="grid grid-cols-2 gap-3.5">
-                <div>
-                  <label class="text-gray-400 block mb-1 text-xs font-semibold">Mã Tên Account (Để quản trị)</label>
-                  <input v-model="form.account_name" placeholder="VD: Traff_VIP_01..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                </div>
-                <div>
-                  <label class="text-gray-400 block mb-1 text-xs font-semibold">Chọn Duy Nhất 1 Platform</label>
-                  <select v-model="form.platform" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white font-bold outline-none">
-                    <option value="traffmonetizer">Traffmonetizer</option>
-                    <option value="honeygain">Honeygain</option>
-                    <option value="pawns">Pawns (IPRoyal)</option>
-                    <option value="repocket">Repocket</option>
-                    <option value="bitping">Bitping</option>
-                    <option value="earnfm">EarnFM</option>
-                    <option value="packetstream">PacketStream</option>
-                  </select>
-                </div>
-                <div>
-                  <label class="text-gray-400 block mb-1 text-xs font-semibold">Nhà Cung Cấp Proxy (Provider)</label>
-                  <input v-model="form.provider" placeholder="VD: Decodo, Webshare..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                </div>
-                <div>
-                  <label class="text-gray-400 block mb-1 text-xs font-semibold">Tiền tố Device Name (Để trống sẽ sinh mã 8 ký tự tĩnh)</label>
-                  <input v-model="form.prefix" placeholder="VD: node, vps01 (hoặc để trống)" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-                </div>
-              </div>
-
-              <!-- KHU VỰC NHẬP THÔNG TIN TÀI KHOẢN THEO PLATFORM -->
-              <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 space-y-2">
-                <div class="font-bold text-indigo-300 text-xs uppercase">Thông tin Xác thực Tài khoản:</div>
-                <div v-if="form.platform === 'traffmonetizer'">
-                  <label class="text-gray-400 block mb-1 text-xs">Traffmonetizer Token</label>
-                  <input v-model="form.token" placeholder="Dán token Traffmonetizer tại đây..." class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs">
-                </div>
-                <div v-else-if="form.platform === 'earnfm'">
-                  <label class="text-gray-400 block mb-1 text-xs">EarnFM API Token</label>
-                  <input v-model="form.token" placeholder="Dán API Key EarnFM tại đây..." class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs">
-                </div>
-                <div v-else-if="form.platform === 'packetstream'">
-                  <label class="text-gray-400 block mb-1 text-xs">PacketStream CID (Customer ID)</label>
-                  <input v-model="form.token" placeholder="Dán CID số PacketStream tại đây..." class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs">
-                </div>
-                <div v-else-if="form.platform === 'repocket'" class="grid grid-cols-2 gap-2">
-                  <div><label class="text-gray-400 block mb-1 text-xs">Email</label><input v-model="form.email" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs"></div>
-                  <div><label class="text-gray-400 block mb-1 text-xs">API Key</label><input v-model="form.token" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs"></div>
-                </div>
-                <div v-else class="grid grid-cols-2 gap-2">
-                  <div><label class="text-gray-400 block mb-1 text-xs">Email</label><input v-model="form.email" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs"></div>
-                  <div><label class="text-gray-400 block mb-1 text-xs">Mật khẩu</label><input type="password" v-model="form.password" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs"></div>
-                </div>
-              </div>
-
-              <div>
-                <label class="text-gray-400 block mb-1 text-xs font-semibold">Danh Sách Proxy (Hỗ trợ isp.decodo.com:10010:user:pass hoặc proxy|device_name)</label>
-                <textarea v-model="form.proxies_raw" rows="5" placeholder="isp.decodo.com:10010:user:pass&#10;isp.decodo.com:10011:user:pass|custom_dev_01" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 font-mono text-white outline-none text-xs"></textarea>
-              </div>
-
-              <div class="flex justify-end gap-2.5 pt-2">
-                <button @click="showImportModal = false" class="px-4 py-2.5 bg-gray-800 rounded-xl text-gray-300 font-medium">Hủy</button>
-                <button @click="submitImport" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white transition">Xác Nhận Khởi Tạo Batch</button>
-              </div>
-            </div>
-          </div>
-
-          <!-- MODAL SỬA PROXY LẺ (HOT-RELOAD) -->
-          <div v-if="showEditModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
-            <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-3.5 border border-gray-800 shadow-2xl text-sm">
-              <h3 class="text-base font-bold text-white flex items-center gap-2">
-                <i class="fa fa-edit text-amber-400"></i> Chỉnh Sửa Node {{ editNodeData.device_name }}
-              </h3>
-              <div>
-                <label class="text-gray-400 block mb-1 text-xs">Device Name</label>
-                <input v-model="editNodeData.device_name" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white font-mono outline-none">
-              </div>
-              <div>
-                <label class="text-gray-400 block mb-1 text-xs">Proxy Endpoint</label>
-                <input v-model="editNodeData.proxy_url" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white font-mono outline-none">
-              </div>
-              <div>
-                <label class="text-gray-400 block mb-1 text-xs">Provider</label>
-                <input v-model="editNodeData.provider" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
-              </div>
-              <div class="flex justify-end gap-2 pt-2">
-                <button @click="showEditModal = false" class="px-4 py-2 bg-gray-800 rounded-xl text-gray-300 font-medium">Đóng</button>
-                <button @click="saveEditNode" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 font-bold rounded-xl text-white transition">Lưu & Hot-Reload</button>
-              </div>
-            </div>
-          </div>
-
         </div>
 
-        <script>
-        const { createApp, ref, computed, onMounted } = Vue;
-        createApp({
-          setup() {
-            const isLoggedIn = ref(false);
-            const loginLoading = ref(false);
-            const loginError = ref("");
-            const showPass = ref(false);
-            const loginForm = ref({ username: "admin", password: "" });
+        <div class="card-panel rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="bg-gray-900/80 border-b border-gray-800 text-gray-400 font-bold uppercase text-[11px]">
+                  <th class="p-3.5 w-10"><input type="checkbox" @change="toggleSelectAll" class="rounded bg-gray-800 border-gray-700"></th>
+                  <th class="p-3.5">Device Name</th>
+                  <th class="p-3.5">Mã Account</th>
+                  <th class="p-3.5">Platform</th>
+                  <th class="p-3.5">Provider</th>
+                  <th class="p-3.5">Proxy Endpoint</th>
+                  <th class="p-3.5">Proxy Live</th>
+                  <th class="p-3.5">Lưu Lượng Kéo</th>
+                  <th class="p-3.5">Sockets</th>
+                  <th class="p-3.5">Trạng Thái</th>
+                  <th class="p-3.5 text-right">Thao Tác</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-800/60 font-sans">
+                <tr v-for="n in paginatedNodes" :key="n.id" class="hover:bg-gray-800/30 transition">
+                  <td class="p-3.5"><input type="checkbox" :value="n.id" v-model="selectedIds" class="rounded bg-gray-800 border-gray-700"></td>
+                  <td class="p-3.5 font-mono font-bold text-amber-300 text-xs">{{ n.device_name }}</td>
+                  <td class="p-3.5 font-bold text-indigo-300">{{ n.account_name }}</td>
+                  <td class="p-3.5">
+                    <span class="px-2.5 py-1 rounded text-[11px] font-bold uppercase bg-indigo-950 text-indigo-400 border border-indigo-800">
+                      {{ n.platform }}
+                    </span>
+                  </td>
+                  <td class="p-3.5 text-gray-400 font-medium">{{ n.provider }}</td>
+                  <td class="p-3.5 font-mono text-gray-300">
+                    <span :class="n.protocol === 'socks5' ? 'text-emerald-400' : 'text-blue-400'" class="font-bold text-[10px] uppercase mr-1">[{{ n.protocol }}]</span>
+                    {{ n.endpoint }}
+                  </td>
+                  <td class="p-3.5 font-mono">
+                    <div class="flex items-center gap-1.5">
+                      <span v-if="n.is_live" class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> LIVE ({{ n.ping_ms }}ms)
+                      </span>
+                      <span v-else class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800 flex items-center gap-1">
+                        <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> DEAD
+                      </span>
+                      <button @click="checkSingleNode(n.id)" class="text-gray-500 hover:text-indigo-400 text-xs ml-1" title="Check Live Ngay">
+                        <i class="fa fa-redo"></i>
+                      </button>
+                    </div>
+                  </td>
+                  <td class="p-3.5 font-mono">
+                    <span class="text-white font-bold text-xs">{{ n.traffic_gb }} GB</span>
+                    <span class="text-gray-500 text-[10px] ml-1">({{ n.traffic_mb }} MB)</span>
+                  </td>
+                  <td class="p-3.5 font-mono">
+                    <span v-if="n.sockets > 0" class="text-emerald-400 font-bold">{{ n.sockets }} conns</span>
+                    <span v-else class="text-gray-500">0</span>
+                  </td>
+                  <td class="p-3.5">
+                    <span v-if="n.status === 'running'" class="text-emerald-400 font-bold flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> RUNNING
+                    </span>
+                    <span v-else class="text-gray-500 font-medium">STOPPED</span>
+                  </td>
+                  <td class="p-3.5 text-right space-x-1">
+                    <button v-if="n.status !== 'running'" @click="startNode(n.id)" class="px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-lg text-xs" title="Bật Node"><i class="fa fa-play"></i></button>
+                    <button v-else @click="stopNode(n.id)" class="px-2.5 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg text-xs" title="Tắt Node"><i class="fa fa-stop"></i></button>
+                    <button @click="openLogsModal(n)" class="px-2.5 py-1 bg-indigo-900/60 hover:bg-indigo-700 text-indigo-300 hover:text-white rounded-lg text-xs" title="Xem Log Container"><i class="fa fa-terminal"></i></button>
+                    <button @click="openEditModal(n)" class="px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs" title="Sửa Proxy"><i class="fa fa-edit"></i></button>
+                    <button @click="triggerDeleteNode(n)" class="px-2.5 py-1 bg-rose-900/60 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs" title="Xóa Node"><i class="fa fa-trash"></i></button>
+                  </td>
+                </tr>
+                <tr v-if="filteredNodes.length === 0">
+                  <td colspan="11" class="p-10 text-center text-gray-500 text-sm">Chưa có node nào phù hợp.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
 
-            const currentTab = ref("overview");
-            const sys = ref({});
-            const nodes = ref([]);
-            const accounts = ref([]);
-            const selectedIds = ref([]);
-            const checkLoading = ref(false);
-            const auditLoading = ref(false);
-            const auditItems = ref([]);
+      <!-- TAB 3: SỔ TÀI KHOẢN -->
+      <section v-if="currentTab === 'accounts'" class="space-y-4">
+        <div class="card-panel p-6 rounded-2xl flex justify-between items-center">
+          <div>
+            <h2 class="text-base font-bold text-white">Sổ Quản Lý Tài Khoản (Platform Accounts)</h2>
+            <p class="text-xs text-gray-400 mt-1">Các tài khoản và Token bạn đã dùng sẽ tự động lưu lại ở đây để bạn tái sử dụng nhanh khi nạp thêm các lô proxy mới.</p>
+          </div>
+        </div>
 
-            const toast = ref({ show: false, message: "", type: "success" });
-            const showToast = (message, type = "success") => {
-              toast.value = { show: true, message, type };
-              setTimeout(() => { toast.value.show = false; }, 3500);
-            };
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div v-for="acc in accounts" :key="acc.id" class="card-panel p-5 rounded-2xl space-y-3 border-l-4 border-indigo-500">
+            <div class="flex justify-between items-center">
+              <span class="font-extrabold text-white text-sm">{{ acc.account_name }}</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-950 text-indigo-400 border border-indigo-800">{{ acc.platform }}</span>
+            </div>
+            <div class="text-xs space-y-1 font-mono text-gray-400">
+              <div v-if="acc.token" class="truncate">Token/CID: <span class="text-gray-300">{{ acc.token }}</span></div>
+              <div v-if="acc.email" class="truncate">Email: <span class="text-gray-300">{{ acc.email }}</span></div>
+            </div>
+            <div class="pt-2 border-t border-gray-800 flex justify-end">
+              <button @click="triggerDeleteAccount(acc)" class="px-3 py-1 bg-rose-900/50 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs">
+                <i class="fa fa-trash mr-1"></i> Xóa Khỏi Sổ
+              </button>
+            </div>
+          </div>
+          <div v-if="accounts.length === 0" class="col-span-3 card-panel p-10 rounded-2xl text-center text-gray-500 text-sm">
+            Chưa có tài khoản nào được lưu.
+          </div>
+        </div>
+      </section>
 
-            const confirmDialog = ref({
-              show: false,
-              title: "",
-              message: "",
-              icon: "fa-question-circle text-indigo-400",
-              iconBg: "bg-indigo-600/20",
-              btnText: "Xác Nhận",
-              btnColor: "bg-indigo-600 hover:bg-indigo-700",
-              action: null
-            });
+      <!-- TAB 4: BẢNG CÀI ĐẶT & SYSTEM AUDIT -->
+      <section v-if="currentTab === 'settings'" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="card-panel p-6 rounded-2xl space-y-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa fa-tag text-indigo-400"></i> Đặt Tên Định Danh Cho VPS
+            </h3>
+            <p class="text-xs text-gray-400">Tên này sẽ xuất hiện trên thanh tiêu đề và Header của Dashboard để bạn mở nhiều tab trình duyệt mà không bị nhầm lẫn.</p>
+            <div class="flex gap-2">
+              <input v-model="vpsAliasInput" placeholder="Ví dụ: OVH_CA_02..." class="flex-1 bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs">
+              <button @click="saveVpsAlias" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white text-xs">Lưu Tên</button>
+            </div>
+          </div>
 
-            const openConfirm = (opts) => {
-              confirmDialog.value = {
-                show: true,
-                title: opts.title || "Xác nhận hành động",
-                message: opts.message || "",
-                icon: opts.icon || "fa-question-circle text-indigo-400",
-                iconBg: opts.iconBg || "bg-indigo-600/20",
-                btnText: opts.btnText || "Xác Nhận",
-                btnColor: opts.btnColor || "bg-indigo-600 hover:bg-indigo-700",
-                action: opts.action || null
-              };
-            };
+          <div class="card-panel p-6 rounded-2xl space-y-4">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <i class="fa fa-key text-amber-400"></i> Đổi Mật Khẩu Quản Trị Web
+            </h3>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <input v-model="passForm.old_password" type="password" placeholder="Mật khẩu hiện tại..." class="bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+              <input v-model="passForm.new_password" type="password" placeholder="Mật khẩu mới (≥6 ký tự)..." class="bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+            </div>
+            <div class="flex justify-end">
+              <button @click="submitChangePassword" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 font-bold rounded-xl text-white text-xs">Xác Nhận Đổi Mật Khẩu</button>
+            </div>
+          </div>
+        </div>
 
-            const executeConfirmAction = async () => {
-              if (confirmDialog.value.action) {
-                await confirmDialog.value.action();
-              }
-              confirmDialog.value.show = false;
-            };
+        <!-- BẢNG SYSTEM AUDIT -->
+        <div class="card-panel p-6 rounded-2xl space-y-4">
+          <div class="flex justify-between items-center">
+            <div>
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <i class="fa fa-clipboard-check text-emerald-400"></i> Bảng Rà Soát Thông Số & Tính Năng Hệ Thống (System Audit)
+              </h3>
+              <p class="text-xs text-gray-400 mt-1">Kiểm tra toàn bộ các tham số hạt nhân Kernel, module mạng và độ an toàn phần cứng.</p>
+            </div>
+            <button @click="loadAuditWithFeedback" :disabled="auditLoading" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-xs font-semibold text-gray-300 flex items-center gap-1.5 transition">
+              <i :class="auditLoading ? 'fa fa-spinner fa-spin' : 'fa fa-sync-alt'"></i>
+              <span>Quét lại</span>
+            </button>
+          </div>
 
-            const currentPage = ref(1);
-            const pageSize = ref(25);
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+            <div v-for="item in auditItems" :key="item.name" class="p-3.5 bg-gray-900/60 rounded-xl border border-gray-800 flex items-center justify-between">
+              <div>
+                <div class="font-bold text-gray-200">{{ item.name }}</div>
+                <div class="text-[11px] text-gray-400 mt-0.5">{{ item.detail }}</div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button v-if="item.can_fix" @click="fixZram" class="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold">
+                  Bật ZRAM Ngay
+                </button>
+                <span v-if="item.status" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
+                  <i class="fa fa-check"></i> ĐẠT CHUẨN
+                </span>
+                <span v-else class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-950 text-rose-400 border border-rose-800 flex items-center gap-1">
+                  <i class="fa fa-times"></i> CẢNH BÁO
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-            const otaChecking = ref(false);
-            const otaUpdating = ref(false);
-            const showOtaModal = ref(false);
-            const otaInfo = ref({});
+        <!-- CÁC TÁC VỤ KIỂM SOÁT SÂU -->
+        <div class="card-panel p-6 rounded-2xl space-y-4">
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa fa-cogs text-indigo-400"></i> Các Tác Vụ Kiểm Soát Sâu VPS (Deep Control Actions)
+          </h3>
+          <div class="flex flex-wrap gap-3">
+            <button @click="triggerCleanRam" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
+              <i class="fa fa-broom text-amber-400"></i> Dọn Rác & Cache RAM (Drop Caches)
+            </button>
+            <button @click="triggerPruneDocker" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
+              <i class="fa fa-dumpster text-blue-400"></i> Dọn Rác Docker (Prune Containers/Images)
+            </button>
+            <button @click="triggerRebootVps" class="px-4 py-2.5 bg-rose-950 hover:bg-rose-900 border border-rose-800 font-bold rounded-xl text-rose-300 text-xs flex items-center gap-2">
+              <i class="fa fa-power-off text-rose-400"></i> Khởi Động Lại VPS An Toàn (Graceful Reboot)
+            </button>
+          </div>
+        </div>
+      </section>
 
-            const showLogsModal = ref(false);
-            const logLoading = ref(false);
-            const logTab = ref("app");
-            const activeLogNode = ref({});
-            const nodeLogs = ref({ app_logs: "", tun_logs: "" });
+    </main>
+  </div>
 
-            const vpsAliasInput = ref("");
-            const passForm = ref({ old_password: "", new_password: "" });
+  <!-- MODAL XÁC NHẬN CHUẨN -->
+  <div v-if="confirmDialog.show" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
+    <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-center">
+      <div class="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-2xl" :class="confirmDialog.iconBg">
+        <i :class="confirmDialog.icon"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-white">{{ confirmDialog.title }}</h3>
+        <p class="text-xs text-gray-400 mt-1.5 leading-relaxed">{{ confirmDialog.message }}</p>
+      </div>
+      <div class="flex justify-center gap-3 pt-2">
+        <button @click="confirmDialog.show = false" class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 font-medium rounded-xl text-gray-300 text-xs">
+          Hủy Bỏ
+        </button>
+        <button @click="executeConfirmAction" :class="confirmDialog.btnColor" class="px-5 py-2.5 font-bold rounded-xl text-white text-xs transition">
+          {{ confirmDialog.btnText }}
+        </button>
+      </div>
+    </div>
+  </div>
 
-            const showImportModal = ref(false);
-            const showEditModal = ref(false);
-            const editNodeData = ref({});
+  <!-- MODAL XEM LOG CONTAINER -->
+  <div v-if="showLogsModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
+    <div class="card-panel w-full max-w-4xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-xs">
+      <div class="flex justify-between items-center pb-3 border-b border-gray-800">
+        <div>
+          <h3 class="text-sm font-bold text-white flex items-center gap-2">
+            <i class="fa fa-terminal text-indigo-400"></i> Nhật Ký Hoạt Động Node: {{ activeLogNode.device_name }} ({{ activeLogNode.platform }})
+          </h3>
+          <span class="text-[11px] text-gray-400 font-mono">Proxy: {{ activeLogNode.endpoint }}</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <button @click="fetchLogs(activeLogNode.id)" :disabled="logLoading" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-xs flex items-center gap-1">
+            <i :class="logLoading ? 'fa fa-spinner fa-spin' : 'fa fa-sync-alt'"></i> Làm mới log
+          </button>
+          <button @click="showLogsModal = false" class="text-gray-500 hover:text-gray-300 text-base"><i class="fa fa-times"></i></button>
+        </div>
+      </div>
 
-            const filterPlatform = ref("");
-            const filterAccount = ref("");
-            const filterProvider = ref("");
-            const filterStatus = ref("");
+      <div class="flex gap-2 border-b border-gray-800 pb-2">
+        <button @click="logTab = 'app'" :class="logTab === 'app' ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-900 text-gray-400'" class="px-3 py-1.5 rounded-lg transition">
+          Log Ứng Dụng ({{ activeLogNode.platform }})
+        </button>
+        <button @click="logTab = 'tun'" :class="logTab === 'tun' ? 'bg-indigo-600 text-white font-bold' : 'bg-gray-900 text-gray-400'" class="px-3 py-1.5 rounded-lg transition">
+          Log Tunnel (tun2proxy)
+        </button>
+      </div>
 
-            const form = ref({
-              account_name: "",
-              platform: "traffmonetizer",
-              provider: "",
-              prefix: "",
-              proxies_raw: "",
-              token: "",
-              email: "",
-              password: ""
-            });
+      <div class="bg-black/90 p-4 rounded-xl border border-gray-800 font-mono text-[11px] h-96 overflow-y-auto leading-relaxed text-gray-300 select-text whitespace-pre-wrap">
+        <div v-if="logLoading" class="text-center py-12 text-gray-500"><i class="fa fa-spinner fa-spin mr-2"></i> Đang tải log từ container...</div>
+        <div v-else-if="logTab === 'app'">{{ nodeLogs.app_logs || 'Chưa có log từ ứng dụng.' }}</div>
+        <div v-else>{{ nodeLogs.tun_logs || 'Chưa có log từ tunnel.' }}</div>
+      </div>
+    </div>
+  </div>
 
-            const getAuthHeaders = () => {
-              const token = localStorage.getItem("fleet_token");
-              return token ? { "Authorization": `Bearer ${token}` } : {};
-            };
+  <!-- MODAL CẬP NHẬT OTA -->
+  <div v-if="showOtaModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
+    <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-xs">
+      <h3 class="text-base font-bold text-white flex items-center gap-2">
+        <i class="fa fa-cloud-download-alt text-emerald-400"></i> Phát Hiện Phiên Bản Mới Trên GitHub!
+      </h3>
+      <div class="space-y-2 bg-gray-900/80 p-3.5 rounded-xl border border-gray-800 font-mono">
+        <div>Commit hiện tại: <b class="text-gray-400">{{ otaInfo.local_sha }}</b></div>
+        <div>Commit mới nhất: <b class="text-emerald-400">{{ otaInfo.remote_sha }}</b></div>
+        <div class="text-[11px] text-gray-300 pt-1 border-t border-gray-800">Nội dung: {{ otaInfo.message }}</div>
+      </div>
+      <div class="p-2.5 bg-blue-950/40 border border-blue-800/60 rounded-xl text-blue-300 text-[11px]">
+        <i class="fa fa-shield-alt mr-1"></i> <b>Cam kết không rớt mạng:</b> Cập nhật chỉ khởi động lại giao diện Web, <b>KHÔNG ngắt kết nối các container proxy đang cày</b>.
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="showOtaModal = false" class="px-4 py-2 bg-gray-800 rounded-xl text-gray-300">Để Sau</button>
+        <button @click="applyOtaUpdate" :disabled="otaUpdating" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 font-bold rounded-xl text-white flex items-center gap-1.5">
+          <span v-if="otaUpdating" class="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+          <span>Xác Nhận Cập Nhật Ngay</span>
+        </button>
+      </div>
+    </div>
+  </div>
 
-            const handleLogin = async () => {
-              loginLoading.value = true;
-              loginError.value = "";
-              try {
-                const res = await fetch("/api/auth/login", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(loginForm.value)
-                });
-                const data = await res.json();
-                if (res.ok && data.token) {
-                  localStorage.setItem("fleet_token", data.token);
-                  isLoggedIn.value = true;
-                  loadSys(); loadNodes(); loadAccounts(); loadAudit();
-                } else {
-                  loginError.value = data.detail || "Đăng nhập thất bại";
-                }
-              } catch (err) {
-                loginError.value = "Lỗi kết nối tới máy chủ VPS";
-              } finally {
-                loginLoading.value = false;
-              }
-            };
+  <!-- MODAL NHẬP BATCH PROXY (HỖ TRỢ ĐỦ 7 NỀN TẢNG) -->
+  <div v-if="showImportModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
+    <div class="card-panel w-full max-w-2xl p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-sm">
+      <div class="flex justify-between items-center pb-3 border-b border-gray-800">
+        <h3 class="text-base font-bold text-white flex items-center gap-2">
+          <i class="fa fa-layer-group text-indigo-400"></i> Khởi Tạo Batch Node Mới (1 TUN = 1 Platform)
+        </h3>
+        <button @click="showImportModal = false" class="text-gray-500 hover:text-gray-300"><i class="fa fa-times"></i></button>
+      </div>
 
-            const handleLogout = () => {
-              localStorage.removeItem("fleet_token");
-              isLoggedIn.value = false;
-              nodes.value = [];
-            };
+      <div v-if="accounts.length > 0">
+        <label class="text-gray-400 block mb-1 text-xs">Hoặc Chọn Nhanh Tài Khoản Đã Lưu Trong Sổ:</label>
+        <select @change="pickSavedAccount($event)" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+          <option value="">-- Tự nhập tài khoản mới bên dưới --</option>
+          <option v-for="a in accounts" :key="a.id" :value="a.id">{{ a.account_name }} ({{ a.platform }})</option>
+        </select>
+      </div>
 
-            const checkAuth = () => {
-              const token = localStorage.getItem("fleet_token");
-              if (token) {
-                isLoggedIn.value = true;
-                loadSys(); loadNodes(); loadAccounts(); loadAudit();
-              }
-            };
+      <div class="grid grid-cols-2 gap-3.5">
+        <div>
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Mã Tên Account (Để quản trị)</label>
+          <input v-model="form.account_name" placeholder="VD: Traff_VIP_01..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+        </div>
+        <div>
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Chọn Nền Tảng</label>
+          <select v-model="form.platform" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white font-bold outline-none">
+            <option value="traffmonetizer">Traffmonetizer</option>
+            <option value="honeygain">Honeygain</option>
+            <option value="pawns">Pawns (IPRoyal)</option>
+            <option value="repocket">Repocket</option>
+            <option value="bitping">Bitping</option>
+            <option value="earnfm">EarnFM</option>
+            <option value="packetstream">PacketStream</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Nhà Cung Cấp Proxy (Provider)</label>
+          <input v-model="form.provider" placeholder="VD: Decodo, Webshare..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+        </div>
+        <div>
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Tiền tố Device Name (Để trống sẽ sinh mã 8 ký tự tĩnh)</label>
+          <input v-model="form.prefix" placeholder="VD: node, vps01 (hoặc để trống)" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+        </div>
+      </div>
 
-            const loadSys = async () => {
-              if (!isLoggedIn.value) return;
-              const res = await fetch("/api/system", { headers: getAuthHeaders() });
-              if (res.status === 401) { handleLogout(); return; }
-              if (res.ok) {
-                sys.value = await res.json();
-                if (!vpsAliasInput.value && sys.value.vps_alias) {
-                  vpsAliasInput.value = sys.value.vps_alias;
-                }
-              }
-            };
+      <div class="bg-gray-900/80 p-4 rounded-xl border border-gray-800 space-y-2">
+        <div class="font-bold text-indigo-300 text-xs uppercase">Thông tin Xác thực Tài khoản:</div>
+        <div v-if="form.platform === 'traffmonetizer'">
+          <label class="text-gray-400 block mb-1 text-xs">Traffmonetizer Token</label>
+          <input v-model="form.token" placeholder="Dán token Traffmonetizer tại đây..." class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs">
+        </div>
+        <div v-else-if="form.platform === 'earnfm'">
+          <label class="text-gray-400 block mb-1 text-xs">EarnFM API Token</label>
+          <input v-model="form.token" placeholder="Dán API Key EarnFM tại đây..." class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs">
+        </div>
+        <div v-else-if="form.platform === 'packetstream'">
+          <label class="text-gray-400 block mb-1 text-xs">PacketStream CID (Customer ID)</label>
+          <input v-model="form.token" placeholder="Dán CID số PacketStream tại đây..." class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs">
+        </div>
+        <div v-else-if="form.platform === 'repocket'" class="grid grid-cols-2 gap-2">
+          <div><label class="text-gray-400 block mb-1 text-xs">Email</label><input v-model="form.email" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs"></div>
+          <div><label class="text-gray-400 block mb-1 text-xs">API Key</label><input v-model="form.token" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none font-mono text-xs"></div>
+        </div>
+        <div v-else class="grid grid-cols-2 gap-2">
+          <div><label class="text-gray-400 block mb-1 text-xs">Email</label><input v-model="form.email" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs"></div>
+          <div><label class="text-gray-400 block mb-1 text-xs">Mật khẩu</label><input type="password" v-model="form.password" class="w-full bg-black border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs"></div>
+        </div>
+      </div>
 
-            const loadNodes = async () => {
-              if (!isLoggedIn.value) return;
-              const res = await fetch("/api/nodes", { headers: getAuthHeaders() });
-              if (res.status === 401) { handleLogout(); return; }
-              if (res.ok) nodes.value = await res.json();
-            };
+      <div>
+        <label class="text-gray-400 block mb-1 text-xs font-semibold">Danh Sách Proxy (Hỗ trợ isp.decodo.com:10010:user:pass hoặc proxy|device_name)</label>
+        <textarea v-model="form.proxies_raw" rows="5" placeholder="isp.decodo.com:10010:user:pass&#10;isp.decodo.com:10011:user:pass|custom_dev_01" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-3 font-mono text-white outline-none text-xs"></textarea>
+      </div>
 
-            const loadAccounts = async () => {
-              if (!isLoggedIn.value) return;
-              const res = await fetch("/api/accounts", { headers: getAuthHeaders() });
-              if (res.ok) accounts.value = await res.json();
-            };
+      <div class="flex justify-end gap-2.5 pt-2">
+        <button @click="showImportModal = false" class="px-4 py-2.5 bg-gray-800 rounded-xl text-gray-300 font-medium">Hủy</button>
+        <button @click="submitImport" class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white transition">Xác Nhận Khởi Tạo Batch</button>
+      </div>
+    </div>
+  </div>
 
-            const loadAudit = async () => {
-              if (!isLoggedIn.value) return;
-              const res = await fetch("/api/system/audit", { headers: getAuthHeaders() });
-              if (res.ok) auditItems.value = await res.json();
-            };
+  <!-- MODAL SỬA PROXY LẺ -->
+  <div v-if="showEditModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
+    <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-3.5 border border-gray-800 shadow-2xl text-sm">
+      <h3 class="text-base font-bold text-white flex items-center gap-2">
+        <i class="fa fa-edit text-amber-400"></i> Chỉnh Sửa Node {{ editNodeData.device_name }}
+      </h3>
+      <div>
+        <label class="text-gray-400 block mb-1 text-xs">Device Name</label>
+        <input v-model="editNodeData.device_name" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white font-mono outline-none">
+      </div>
+      <div>
+        <label class="text-gray-400 block mb-1 text-xs">Proxy Endpoint</label>
+        <input v-model="editNodeData.proxy_url" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white font-mono outline-none">
+      </div>
+      <div>
+        <label class="text-gray-400 block mb-1 text-xs">Provider</label>
+        <input v-model="editNodeData.provider" class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button @click="showEditModal = false" class="px-4 py-2 bg-gray-800 rounded-xl text-gray-300 font-medium">Đóng</button>
+        <button @click="saveEditNode" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 font-bold rounded-xl text-white transition">Lưu & Hot-Reload</button>
+      </div>
+    </div>
+  </div>
 
-            const loadAuditWithFeedback = async () => {
-              auditLoading.value = true;
-              try {
-                await loadAudit();
-                showToast("Đã cập nhật lại bảng System Audit!", "success");
-              } finally {
-                auditLoading.value = false;
-              }
-            };
+</div>
 
-            const fixZram = async () => {
-              const res = await fetch("/api/system/enable-zram", { method: "POST", headers: getAuthHeaders() });
-              const d = await res.json();
-              showToast(d.message || "Đã gửi lệnh bật ZRAM!", "success");
-              await loadAudit(); await loadSys();
-            };
+<script>
+const { createApp, ref, computed, onMounted } = Vue;
+createApp({
+  setup() {
+    const isLoggedIn = ref(false);
+    const loginLoading = ref(false);
+    const loginError = ref("");
+    const showPass = ref(false);
+    const loginForm = ref({ username: "admin", password: "" });
 
-            const saveVpsAlias = async () => {
-              if (!vpsAliasInput.value) return;
-              await fetch("/api/system/vps-alias", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify({ vps_alias: vpsAliasInput.value })
-              });
-              loadSys();
-              showToast("Đã cập nhật tên VPS thành công!", "success");
-            };
+    const currentTab = ref("overview");
+    const sys = ref({});
+    const nodes = ref([]);
+    const accounts = ref([]);
+    const selectedIds = ref([]);
+    const checkLoading = ref(false);
+    const auditLoading = ref(false);
+    const auditItems = ref([]);
 
-            const submitChangePassword = async () => {
-              if (!passForm.value.old_password || !passForm.value.new_password) {
-                showToast("Vui lòng điền đầy đủ mật khẩu cũ và mới!", "error");
-                return;
-              }
-              const res = await fetch("/api/auth/change-password", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify(passForm.value)
-              });
-              const data = await res.json();
-              if (res.ok && data.new_token) {
-                localStorage.setItem("fleet_token", data.new_token);
-                passForm.value = { old_password: "", new_password: "" };
-                showToast("Đã đổi mật khẩu thành công!", "success");
-              } else {
-                showToast(data.detail || "Đổi mật khẩu thất bại!", "error");
-              }
-            };
+    const toast = ref({ show: false, message: "", type: "success" });
+    const showToast = (message, type = "success") => {
+      toast.value = { show: true, message, type };
+      setTimeout(() => { toast.value.show = false; }, 3500);
+    };
 
-            const triggerCleanRam = () => {
-              openConfirm({
-                title: "Giải phóng Bộ nhớ Cache RAM?",
-                message: "Hệ thống sẽ chạy lệnh drop_caches của Linux để giải phóng RAM đệm thừa mà không ảnh hưởng đến container.",
-                icon: "fa-broom text-amber-400",
-                iconBg: "bg-amber-600/20",
-                btnText: "Dọn Dẹp Ngay",
-                btnColor: "bg-amber-600 hover:bg-amber-700",
-                action: async () => {
-                  const res = await fetch("/api/system/clean-ram", { method: "POST", headers: getAuthHeaders() });
-                  const d = await res.json();
-                  showToast(d.message || "Đã dọn cache RAM!", "success");
-                  loadSys();
-                }
-              });
-            };
+    const confirmDialog = ref({
+      show: false,
+      title: "",
+      message: "",
+      icon: "fa-question-circle text-indigo-400",
+      iconBg: "bg-indigo-600/20",
+      btnText: "Xác Nhận",
+      btnColor: "bg-indigo-600 hover:bg-indigo-700",
+      action: null
+    });
 
-            const triggerPruneDocker = () => {
-              openConfirm({
-                title: "Dọn dẹp rác Docker thừa?",
-                message: "Hệ thống sẽ xóa sạch các container, network chết và image mồ côi để thu hồi dung lượng ổ cứng.",
-                icon: "fa-dumpster text-blue-400",
-                iconBg: "bg-blue-600/20",
-                btnText: "Dọn Rác Docker",
-                btnColor: "bg-blue-600 hover:bg-blue-700",
-                action: async () => {
-                  const res = await fetch("/api/system/prune-docker", { method: "POST", headers: getAuthHeaders() });
-                  const d = await res.json();
-                  showToast(`Đã xóa ${d.containers_deleted} container rác, thu hồi ${d.space_reclaimed_mb} MB!`, "success");
-                  loadSys();
-                }
-              });
-            };
+    const openConfirm = (opts) => {
+      confirmDialog.value = {
+        show: true,
+        title: opts.title || "Xác nhận hành động",
+        message: opts.message || "",
+        icon: opts.icon || "fa-question-circle text-indigo-400",
+        iconBg: opts.iconBg || "bg-indigo-600/20",
+        btnText: opts.btnText || "Xác Nhận",
+        btnColor: opts.btnColor || "bg-indigo-600 hover:bg-indigo-700",
+        action: opts.action || null
+      };
+    };
 
-            const triggerRebootVps = () => {
-              openConfirm({
-                title: "CẢNH BÁO: Khởi động lại VPS?",
-                message: "Tất cả các container sẽ được dừng an toàn trước khi reboot để tránh đứt socket. Hãy đợi khoảng 1-2 phút sau đó F5 lại trang.",
-                icon: "fa-power-off text-rose-400",
-                iconBg: "bg-rose-600/20",
-                btnText: "Khởi Động Lại Ngay",
-                btnColor: "bg-rose-600 hover:bg-rose-700",
-                action: async () => {
-                  await fetch("/api/system/reboot-vps", { method: "POST", headers: getAuthHeaders() });
-                  showToast("VPS đang khởi động lại. Hãy đợi 1-2 phút!", "success");
-                }
-              });
-            };
+    const executeConfirmAction = async () => {
+      if (confirmDialog.value.action) {
+        await confirmDialog.value.action();
+      }
+      confirmDialog.value.show = false;
+    };
 
-            const checkOtaUpdate = async () => {
-              otaChecking.value = true;
-              try {
-                const res = await fetch("/api/system/check-update", { headers: getAuthHeaders() });
-                const data = await res.json();
-                if (data.has_update) {
-                  otaInfo.value = data;
-                  showOtaModal.value = true;
-                } else {
-                  showToast("Hệ thống đang chạy phiên bản mới nhất!", "success");
-                }
-              } catch (e) {
-                showToast("Không thể kiểm tra cập nhật từ GitHub", "error");
-              } finally {
-                otaChecking.value = false;
-              }
-            };
+    const currentPage = ref(1);
+    const pageSize = ref(25);
 
-            const applyOtaUpdate = async () => {
-              otaUpdating.value = true;
-              try {
-                await fetch("/api/system/apply-update", { method: "POST", headers: getAuthHeaders() });
-                showToast("Đang cập nhật... Trang sẽ tự làm mới sau 5 giây!", "success");
-                setTimeout(() => { window.location.reload(); }, 5000);
-              } catch (e) {
-                showToast("Lỗi khi gửi yêu cầu cập nhật", "error");
-              } finally {
-                otaUpdating.value = false;
-                showOtaModal.value = false;
-              }
-            };
+    const otaChecking = ref(false);
+    const otaUpdating = ref(false);
+    const showOtaModal = ref(false);
+    const otaInfo = ref({});
 
-            const openLogsModal = (node) => {
-              activeLogNode.value = node;
-              logTab.value = "app";
-              showLogsModal.value = true;
-              fetchLogs(node.id);
-            };
+    const showLogsModal = ref(false);
+    const logLoading = ref(false);
+    const logTab = ref("app");
+    const activeLogNode = ref({});
+    const nodeLogs = ref({ app_logs: "", tun_logs: "" });
 
-            const fetchLogs = async (id) => {
-              logLoading.value = true;
-              try {
-                const res = await fetch(`/api/nodes/${id}/logs`, { headers: getAuthHeaders() });
-                if (res.ok) nodeLogs.value = await res.json();
-              } finally {
-                logLoading.value = false;
-              }
-            };
+    const vpsAliasInput = ref("");
+    const passForm = ref({ old_password: "", new_password: "" });
 
-            const checkSingleNode = async (id) => {
-              await fetch(`/api/nodes/${id}/check`, { method: "POST", headers: getAuthHeaders() });
-              loadNodes();
-            };
+    const showImportModal = ref(false);
+    const showEditModal = ref(false);
+    const editNodeData = ref({});
 
-            const checkAllLive = async () => {
-              checkLoading.value = true;
-              try {
-                await fetch("/api/nodes/check-all", { method: "POST", headers: getAuthHeaders() });
-                await loadNodes();
-                showToast("Đã hoàn tất kiểm tra trạng thái toàn bộ Proxy!", "success");
-              } finally {
-                checkLoading.value = false;
-              }
-            };
+    const filterPlatform = ref("");
+    const filterAccount = ref("");
+    const filterProvider = ref("");
+    const filterStatus = ref("");
 
-            const triggerDeleteDead = () => {
-              openConfirm({
-                title: "Xóa toàn bộ Node Proxy Dead?",
-                message: `Bạn có chắc chắn muốn xóa ${deadCount.value} node proxy đã chết khỏi hệ thống?`,
-                icon: "fa-filter text-rose-400",
-                iconBg: "bg-rose-600/20",
-                btnText: "Xóa Proxy Dead",
-                btnColor: "bg-rose-600 hover:bg-rose-700",
-                action: async () => {
-                  await fetch("/api/nodes/dead", { method: "DELETE", headers: getAuthHeaders() });
-                  loadNodes();
-                  showToast(`Đã xóa node proxy chết!`, "success");
-                }
-              });
-            };
+    const form = ref({
+      account_name: "",
+      platform: "traffmonetizer",
+      provider: "",
+      prefix: "",
+      proxies_raw: "",
+      token: "",
+      email: "",
+      password: ""
+    });
 
-            const triggerDeleteNode = (node) => {
-              openConfirm({
-                title: `Xóa Node ${node.device_name}?`,
-                message: `Hệ thống sẽ dừng app và hủy container TUN ${node.endpoint}. Hành động này không thể hoàn tác.`,
-                icon: "fa-trash text-rose-400",
-                iconBg: "bg-rose-600/20",
-                btnText: "Xóa Node",
-                btnColor: "bg-rose-600 hover:bg-rose-700",
-                action: async () => {
-                  await fetch(`/api/nodes/${node.id}`, { method: "DELETE", headers: getAuthHeaders() });
-                  loadNodes();
-                  showToast(`Đã xóa node ${node.device_name}!`, "success");
-                }
-              });
-            };
+    const getAuthHeaders = () => {
+      const token = localStorage.getItem("fleet_token");
+      return token ? { "Authorization": `Bearer ${token}` } : {};
+    };
 
-            const triggerDeleteAccount = (acc) => {
-              openConfirm({
-                title: `Xóa Tài Khoản ${acc.account_name}?`,
-                message: "Hành động này chỉ xóa thông tin lưu trong Sổ tài khoản, các container đang chạy sẽ không bị ảnh hưởng.",
-                icon: "fa-trash text-rose-400",
-                iconBg: "bg-rose-600/20",
-                btnText: "Xóa Khỏi Sổ",
-                btnColor: "bg-rose-600 hover:bg-rose-700",
-                action: async () => {
-                  await fetch(`/api/accounts/${acc.id}`, { method: "DELETE", headers: getAuthHeaders() });
-                  loadAccounts();
-                  showToast("Đã xóa tài khoản khỏi sổ lưu!", "success");
-                }
-              });
-            };
+    const handleLogin = async () => {
+      loginLoading.value = true;
+      loginError.value = "";
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(loginForm.value)
+        });
+        const data = await res.json();
+        if (res.ok && data.token) {
+          localStorage.setItem("fleet_token", data.token);
+          isLoggedIn.value = true;
+          loadSys(); loadNodes(); loadAccounts(); loadAudit();
+        } else {
+          loginError.value = data.detail || "Đăng nhập thất bại";
+        }
+      } catch (err) {
+        loginError.value = "Lỗi kết nối tới máy chủ VPS";
+      } finally {
+        loginLoading.value = false;
+      }
+    };
 
-            const triggerDeleteSelected = () => {
-              openConfirm({
-                title: `Xóa ${selectedIds.value.length} Node Đã Chọn?`,
-                message: "Tất cả các node được tích chọn sẽ bị dừng container và xóa vĩnh viễn khỏi danh sách.",
-                icon: "fa-trash text-rose-400",
-                iconBg: "bg-rose-600/20",
-                btnText: "Xóa Đã Chọn",
-                btnColor: "bg-rose-600 hover:bg-rose-700",
-                action: async () => {
-                  await fetch("/api/nodes/bulk/delete", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                    body: JSON.stringify(selectedIds.value)
-                  });
-                  const cnt = selectedIds.value.length;
-                  selectedIds.value = [];
-                  loadNodes();
-                  showToast(`Đã xóa ${cnt} node được chọn!`, "success");
-                }
-              });
-            };
+    const handleLogout = () => {
+      localStorage.removeItem("fleet_token");
+      isLoggedIn.value = false;
+      nodes.value = [];
+    };
 
-            const pickSavedAccount = (e) => {
-              const id = e.target.value;
-              const acc = accounts.value.find(a => a.id === id);
-              if (acc) {
-                form.value.account_name = acc.account_name;
-                form.value.platform = acc.platform;
-                form.value.token = acc.token || "";
-                form.value.email = acc.email || "";
-                form.value.password = acc.password || "";
-              }
-            };
+    const checkAuth = () => {
+      const token = localStorage.getItem("fleet_token");
+      if (token) {
+        isLoggedIn.value = true;
+        loadSys(); loadNodes(); loadAccounts(); loadAudit();
+      }
+    };
 
-            const runningCount = computed(() => nodes.value.filter(n => n.status === "running").length);
-            const liveCount = computed(() => nodes.value.filter(n => n.is_live).length);
-            const deadCount = computed(() => nodes.value.filter(n => !n.is_live).length);
+    const loadSys = async () => {
+      if (!isLoggedIn.value) return;
+      const res = await fetch("/api/system", { headers: getAuthHeaders() });
+      if (res.status === 401) { handleLogout(); return; }
+      if (res.ok) {
+        sys.value = await res.json();
+        if (!vpsAliasInput.value && sys.value.vps_alias) {
+          vpsAliasInput.value = sys.value.vps_alias;
+        }
+      }
+    };
 
-            const totalTrafficGb = computed(() => {
-              const sum = nodes.value.reduce((acc, n) => acc + (n.traffic_gb || 0), 0);
-              return sum.toFixed(2);
-            });
+    const loadNodes = async () => {
+      if (!isLoggedIn.value) return;
+      const res = await fetch("/api/nodes", { headers: getAuthHeaders() });
+      if (res.status === 401) { handleLogout(); return; }
+      if (res.ok) nodes.value = await res.json();
+    };
 
-            const filteredNodes = computed(() => {
-              return nodes.value.filter(n => {
-                if (!n || typeof n !== 'object') return false;
-                if (filterPlatform.value && n.platform !== filterPlatform.value) return false;
-                if (filterAccount.value && !(n.account_name || "").toLowerCase().includes(filterAccount.value.toLowerCase())) return false;
-                if (filterProvider.value && !(n.provider || "").toLowerCase().includes(filterProvider.value.toLowerCase())) return false;
-                if (filterStatus.value === "running" && n.status !== "running") return false;
-                if (filterStatus.value === "stopped" && n.status !== "stopped") return false;
-                if (filterStatus.value === "live" && !n.is_live) return false;
-                if (filterStatus.value === "dead" && n.is_live) return false;
-                return true;
-              });
-            });
+    const loadAccounts = async () => {
+      if (!isLoggedIn.value) return;
+      const res = await fetch("/api/accounts", { headers: getAuthHeaders() });
+      if (res.ok) accounts.value = await res.json();
+    };
 
-            const totalPages = computed(() => Math.ceil(filteredNodes.value.length / pageSize.value) || 1);
-            const paginatedNodes = computed(() => {
-              const start = (currentPage.value - 1) * pageSize.value;
-              return filteredNodes.value.slice(start, start + pageSize.value);
-            });
+    const loadAudit = async () => {
+      if (!isLoggedIn.value) return;
+      const res = await fetch("/api/system/audit", { headers: getAuthHeaders() });
+      if (res.ok) auditItems.value = await res.json();
+    };
 
-            const submitImport = async () => {
-              if (!form.value.platform || !form.value.proxies_raw) {
-                showToast("Vui lòng chọn Platform và dán danh sách proxy!", "error");
-                return;
-              }
-              const res = await fetch("/api/nodes/import", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify(form.value)
-              });
-              if (res.ok) {
-                showImportModal.value = false;
-                form.value.proxies_raw = "";
-                loadNodes(); loadAccounts();
-                showToast("Khởi tạo Batch Node thành công!", "success");
-              } else {
-                showToast("Có lỗi xảy ra khi tạo Batch Node!", "error");
-              }
-            };
+    const loadAuditWithFeedback = async () => {
+      auditLoading.value = true;
+      try {
+        await loadAudit();
+        showToast("Đã cập nhật lại bảng System Audit!", "success");
+      } finally {
+        auditLoading.value = false;
+      }
+    };
 
-            const startNode = async (id) => {
-              const res = await fetch(`/api/nodes/${id}/start`, { method: "POST", headers: getAuthHeaders() });
-              const data = await res.json();
-              if (res.ok) {
-                loadNodes();
-                showToast("Đã gửi lệnh bật node thành công!", "success");
-              } else {
-                showToast(data.detail || "Lỗi khi bật node!", "error");
-              }
-            };
+    const fixZram = async () => {
+      const res = await fetch("/api/system/enable-zram", { method: "POST", headers: getAuthHeaders() });
+      const d = await res.json();
+      showToast(d.message || "Đã gửi lệnh bật ZRAM!", "success");
+      await loadAudit(); await loadSys();
+    };
 
-            const stopNode = async (id) => {
-              await fetch(`/api/nodes/${id}/stop`, { method: "POST", headers: getAuthHeaders() });
-              loadNodes();
-              showToast("Đã gửi lệnh tắt node!", "success");
-            };
+    const saveVpsAlias = async () => {
+      if (!vpsAliasInput.value) return;
+      await fetch("/api/system/vps-alias", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({ vps_alias: vpsAliasInput.value })
+      });
+      loadSys();
+      showToast("Đã cập nhật tên VPS thành công!", "success");
+    };
 
-            const openEditModal = (node) => {
-              editNodeData.value = { ...node };
-              showEditModal.value = true;
-            };
+    const submitChangePassword = async () => {
+      if (!passForm.value.old_password || !passForm.value.new_password) {
+        showToast("Vui lòng điền đầy đủ mật khẩu cũ và mới!", "error");
+        return;
+      }
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(passForm.value)
+      });
+      const data = await res.json();
+      if (res.ok && data.new_token) {
+        localStorage.setItem("fleet_token", data.new_token);
+        passForm.value = { old_password: "", new_password: "" };
+        showToast("Đã đổi mật khẩu thành công!", "success");
+      } else {
+        showToast(data.detail || "Đổi mật khẩu thất bại!", "error");
+      }
+    };
 
-            const saveEditNode = async () => {
-              const res = await fetch(`/api/nodes/${editNodeData.value.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify(editNodeData.value)
-              });
-              if (res.ok) {
-                showEditModal.value = false;
-                loadNodes();
-                showToast("Đã lưu và Hot-Reload node thành công!", "success");
-              } else {
-                showToast("Lỗi khi cập nhật proxy node!", "error");
-              }
-            };
+    const triggerCleanRam = () => {
+      openConfirm({
+        title: "Giải phóng Bộ nhớ Cache RAM?",
+        message: "Hệ thống sẽ chạy lệnh drop_caches của Linux để giải phóng RAM đệm thừa mà không ảnh hưởng đến container.",
+        icon: "fa-broom text-amber-400",
+        iconBg: "bg-amber-600/20",
+        btnText: "Dọn Dẹp Ngay",
+        btnColor: "bg-amber-600 hover:bg-amber-700",
+        action: async () => {
+          const res = await fetch("/api/system/clean-ram", { method: "POST", headers: getAuthHeaders() });
+          const d = await res.json();
+          showToast(d.message || "Đã dọn cache RAM!", "success");
+          loadSys();
+        }
+      });
+    };
 
-            const toggleSelectAll = (e) => {
-              if (e.target.checked) selectedIds.value = paginatedNodes.value.map(n => n.id);
-              else selectedIds.value = [];
-            };
+    const triggerPruneDocker = () => {
+      openConfirm({
+        title: "Dọn dẹp rác Docker thừa?",
+        message: "Hệ thống sẽ xóa sạch các container, network chết và image mồ côi để thu hồi dung lượng ổ cứng.",
+        icon: "fa-dumpster text-blue-400",
+        iconBg: "bg-blue-600/20",
+        btnText: "Dọn Rác Docker",
+        btnColor: "bg-blue-600 hover:bg-blue-700",
+        action: async () => {
+          const res = await fetch("/api/system/prune-docker", { method: "POST", headers: getAuthHeaders() });
+          const d = await res.json();
+          showToast(`Đã xóa ${d.containers_deleted} container rác, thu hồi ${d.space_reclaimed_mb} MB!`, "success");
+          loadSys();
+        }
+      });
+    };
 
-            const startSelected = async () => {
-              await fetch("/api/nodes/bulk/start", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify(selectedIds.value)
-              });
-              loadNodes();
-              showToast(`Đã gửi lệnh bật ${selectedIds.value.length} node!`, "success");
-            };
+    const triggerRebootVps = () => {
+      openConfirm({
+        title: "CẢNH BÁO: Khởi động lại VPS?",
+        message: "Tất cả các container sẽ được dừng an toàn trước khi reboot để tránh đứt socket. Hãy đợi khoảng 1-2 phút sau đó F5 lại trang.",
+        icon: "fa-power-off text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Khởi Động Lại Ngay",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch("/api/system/reboot-vps", { method: "POST", headers: getAuthHeaders() });
+          showToast("VPS đang khởi động lại. Hãy đợi 1-2 phút!", "success");
+        }
+      });
+    };
 
-            const stopSelected = async () => {
-              await fetch("/api/nodes/bulk/stop", {
-                method: "POST",
-                headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-                body: JSON.stringify(selectedIds.value)
-              });
-              loadNodes();
-              showToast(`Đã tắt ${selectedIds.value.length} node!`, "success");
-            };
+    const checkOtaUpdate = async () => {
+      otaChecking.value = true;
+      try {
+        const res = await fetch("/api/system/check-update", { headers: getAuthHeaders() });
+        const data = await res.json();
+        if (data.has_update) {
+          otaInfo.value = data;
+          showOtaModal.value = true;
+        } else {
+          showToast("Hệ thống đang chạy phiên bản mới nhất!", "success");
+        }
+      } catch (e) {
+        showToast("Không thể kiểm tra cập nhật từ GitHub", "error");
+      } finally {
+        otaChecking.value = false;
+      }
+    };
 
-            onMounted(() => {
-              checkAuth();
-              if (window.location.hash) {
-                currentTab.value = window.location.hash.replace("#", "");
-              }
-              setInterval(loadSys, 3000);
-              setInterval(loadNodes, 12000);
-            });
+    const applyOtaUpdate = async () => {
+      otaUpdating.value = true;
+      try {
+        await fetch("/api/system/apply-update", { method: "POST", headers: getAuthHeaders() });
+        showToast("Đang cập nhật... Trang sẽ tự làm mới sau 5 giây!", "success");
+        setTimeout(() => { window.location.reload(); }, 5000);
+      } catch (e) {
+        showToast("Lỗi khi gửi yêu cầu cập nhật", "error");
+      } finally {
+        otaUpdating.value = false;
+        showOtaModal.value = false;
+      }
+    };
 
-            return {
-              isLoggedIn, loginLoading, loginError, showPass, loginForm, handleLogin, handleLogout,
-              currentTab, sys, nodes, accounts, filteredNodes, paginatedNodes, selectedIds, runningCount, liveCount, deadCount, totalTrafficGb,
-              filterPlatform, filterAccount, filterProvider, filterStatus, checkLoading, auditLoading, auditItems,
-              currentPage, pageSize, totalPages,
-              vpsAliasInput, passForm, saveVpsAlias, submitChangePassword, triggerCleanRam, triggerPruneDocker, triggerRebootVps, loadAudit, loadAuditWithFeedback, fixZram,
-              showImportModal, showEditModal, form, editNodeData, pickSavedAccount, triggerDeleteAccount,
-              submitImport, startNode, stopNode, triggerDeleteNode, openEditModal, saveEditNode,
-              toggleSelectAll, startSelected, stopSelected, triggerDeleteSelected, loadNodes, checkSingleNode, checkAllLive, triggerDeleteDead,
-              otaChecking, otaUpdating, showOtaModal, otaInfo, checkOtaUpdate, applyOtaUpdate,
-              showLogsModal, logLoading, logTab, activeLogNode, nodeLogs, openLogsModal, fetchLogs,
-              confirmDialog, openConfirm, executeConfirmAction, toast, showToast
-            };
-          }
-        }).mount("#app");
-        </script>
+    const openLogsModal = (node) => {
+      activeLogNode.value = node;
+      logTab.value = "app";
+      showLogsModal.value = true;
+      fetchLogs(node.id);
+    };
+
+    const fetchLogs = async (id) => {
+      logLoading.value = true;
+      try {
+        const res = await fetch(`/api/nodes/${id}/logs`, { headers: getAuthHeaders() });
+        if (res.ok) nodeLogs.value = await res.json();
+      } finally {
+        logLoading.value = false;
+      }
+    };
+
+    const checkSingleNode = async (id) => {
+      await fetch(`/api/nodes/${id}/check`, { method: "POST", headers: getAuthHeaders() });
+      loadNodes();
+    };
+
+    const checkAllLive = async () => {
+      checkLoading.value = true;
+      try {
+        await fetch("/api/nodes/check-all", { method: "POST", headers: getAuthHeaders() });
+        await loadNodes();
+        showToast("Đã hoàn tất kiểm tra trạng thái toàn bộ Proxy!", "success");
+      } finally {
+        checkLoading.value = false;
+      }
+    };
+
+    const triggerDeleteDead = () => {
+      openConfirm({
+        title: "Xóa toàn bộ Node Proxy Dead?",
+        message: `Bạn có chắc chắn muốn xóa ${deadCount.value} node proxy đã chết khỏi hệ thống?`,
+        icon: "fa-filter text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Xóa Proxy Dead",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch("/api/nodes/dead", { method: "DELETE", headers: getAuthHeaders() });
+          loadNodes();
+          showToast(`Đã xóa node proxy chết!`, "success");
+        }
+      });
+    };
+
+    const triggerDeleteNode = (node) => {
+      openConfirm({
+        title: `Xóa Node ${node.device_name}?`,
+        message: `Hệ thống sẽ dừng app và hủy container TUN ${node.endpoint}. Hành động này không thể hoàn tác.`,
+        icon: "fa-trash text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Xóa Node",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch(`/api/nodes/${node.id}`, { method: "DELETE", headers: getAuthHeaders() });
+          loadNodes();
+          showToast(`Đã xóa node ${node.device_name}!`, "success");
+        }
+      });
+    };
+
+    const triggerDeleteAccount = (acc) => {
+      openConfirm({
+        title: `Xóa Tài Khoản ${acc.account_name}?`,
+        message: "Hành động này chỉ xóa thông tin lưu trong Sổ tài khoản, các container đang chạy sẽ không bị ảnh hưởng.",
+        icon: "fa-trash text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Xóa Khỏi Sổ",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch(`/api/accounts/${acc.id}`, { method: "DELETE", headers: getAuthHeaders() });
+          loadAccounts();
+          showToast("Đã xóa tài khoản khỏi sổ lưu!", "success");
+        }
+      });
+    };
+
+    const triggerDeleteSelected = () => {
+      openConfirm({
+        title: `Xóa ${selectedIds.value.length} Node Đã Chọn?`,
+        message: "Tất cả các node được tích chọn sẽ bị dừng container và xóa vĩnh viễn khỏi danh sách.",
+        icon: "fa-trash text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Xóa Đã Chọn",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch("/api/nodes/bulk/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify(selectedIds.value)
+          });
+          const cnt = selectedIds.value.length;
+          selectedIds.value = [];
+          loadNodes();
+          showToast(`Đã xóa ${cnt} node được chọn!`, "success");
+        }
+      });
+    };
+
+    const pickSavedAccount = (e) => {
+      const id = e.target.value;
+      const acc = accounts.value.find(a => a.id === id);
+      if (acc) {
+        form.value.account_name = acc.account_name;
+        form.value.platform = acc.platform;
+        form.value.token = acc.token || "";
+        form.value.email = acc.email || "";
+        form.value.password = acc.password || "";
+      }
+    };
+
+    const runningCount = computed(() => nodes.value.filter(n => n.status === "running").length);
+    const liveCount = computed(() => nodes.value.filter(n => n.is_live).length);
+    const deadCount = computed(() => nodes.value.filter(n => !n.is_live).length);
+
+    const totalTrafficGb = computed(() => {
+      const sum = nodes.value.reduce((acc, n) => acc + (n.traffic_gb || 0), 0);
+      return sum.toFixed(2);
+    });
+
+    const filteredNodes = computed(() => {
+      return nodes.value.filter(n => {
+        if (!n || typeof n !== 'object') return false;
+        if (filterPlatform.value && n.platform !== filterPlatform.value) return false;
+        if (filterAccount.value && !(n.account_name || "").toLowerCase().includes(filterAccount.value.toLowerCase())) return false;
+        if (filterProvider.value && !(n.provider || "").toLowerCase().includes(filterProvider.value.toLowerCase())) return false;
+        if (filterStatus.value === "running" && n.status !== "running") return false;
+        if (filterStatus.value === "stopped" && n.status !== "stopped") return false;
+        if (filterStatus.value === "live" && !n.is_live) return false;
+        if (filterStatus.value === "dead" && n.is_live) return false;
+        return true;
+      });
+    });
+
+    const totalPages = computed(() => Math.ceil(filteredNodes.value.length / pageSize.value) || 1);
+    const paginatedNodes = computed(() => {
+      const start = (currentPage.value - 1) * pageSize.value;
+      return filteredNodes.value.slice(start, start + pageSize.value);
+    });
+
+    const submitImport = async () => {
+      if (!form.value.platform || !form.value.proxies_raw) {
+        showToast("Vui lòng chọn Platform và dán danh sách proxy!", "error");
+        return;
+      }
+      const res = await fetch("/api/nodes/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(form.value)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showImportModal.value = false;
+        form.value.proxies_raw = "";
+        loadNodes();
+        loadAccounts();
+        showToast(`Đã nhập thành công ${data.added} node! Hệ thống đang tự động bật ngầm...`, "success");
+      } else {
+        showToast(data.detail || "Có lỗi xảy ra khi tạo Batch Node!", "error");
+      }
+    };
+
+    const startNode = async (id) => {
+      const res = await fetch(`/api/nodes/${id}/start`, { method: "POST", headers: getAuthHeaders() });
+      const data = await res.json();
+      if (res.ok) {
+        loadNodes();
+        showToast("Đã gửi lệnh bật node thành công!", "success");
+      } else {
+        showToast(data.detail || "Lỗi khi bật node!", "error");
+      }
+    };
+
+    const stopNode = async (id) => {
+      await fetch(`/api/nodes/${id}/stop`, { method: "POST", headers: getAuthHeaders() });
+      loadNodes();
+      showToast("Đã gửi lệnh tắt node!", "success");
+    };
+
+    const openEditModal = (node) => {
+      editNodeData.value = { ...node };
+      showEditModal.value = true;
+    };
+
+    const saveEditNode = async () => {
+      const res = await fetch(`/api/nodes/${editNodeData.value.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(editNodeData.value)
+      });
+      if (res.ok) {
+        showEditModal.value = false;
+        loadNodes();
+        showToast("Đã lưu và Hot-Reload node thành công!", "success");
+      } else {
+        showToast("Lỗi khi cập nhật proxy node!", "error");
+      }
+    };
+
+    const toggleSelectAll = (e) => {
+      if (e.target.checked) selectedIds.value = paginatedNodes.value.map(n => n.id);
+      else selectedIds.value = [];
+    };
+
+    const startSelected = async () => {
+      await fetch("/api/nodes/bulk/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(selectedIds.value)
+      });
+      loadNodes();
+      showToast(`Đã gửi lệnh bật ${selectedIds.value.length} node!`, "success");
+    };
+
+    const stopSelected = async () => {
+      await fetch("/api/nodes/bulk/stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify(selectedIds.value)
+      });
+      loadNodes();
+      showToast(`Đã tắt ${selectedIds.value.length} node!`, "success");
+    };
+
+    onMounted(() => {
+      checkAuth();
+      if (window.location.hash) {
+        currentTab.value = window.location.hash.replace("#", "");
+      }
+      setInterval(loadSys, 3000);
+      setInterval(loadNodes, 12000);
+    });
+
+    return {
+      isLoggedIn, loginLoading, loginError, showPass, loginForm, handleLogin, handleLogout,
+      currentTab, sys, nodes, accounts, filteredNodes, paginatedNodes, selectedIds, runningCount, liveCount, deadCount, totalTrafficGb,
+      filterPlatform, filterAccount, filterProvider, filterStatus, checkLoading, auditLoading, auditItems,
+      currentPage, pageSize, totalPages,
+      vpsAliasInput, passForm, saveVpsAlias, submitChangePassword, triggerCleanRam, triggerPruneDocker, triggerRebootVps, loadAudit, loadAuditWithFeedback, fixZram,
+      showImportModal, showEditModal, form, editNodeData, pickSavedAccount, triggerDeleteAccount,
+      submitImport, startNode, stopNode, triggerDeleteNode, openEditModal, saveEditNode,
+      toggleSelectAll, startSelected, stopSelected, triggerDeleteSelected, loadNodes, checkSingleNode, checkAllLive, triggerDeleteDead,
+      otaChecking, otaUpdating, showOtaModal, otaInfo, checkOtaUpdate, applyOtaUpdate,
+      showLogsModal, logLoading, logTab, activeLogNode, nodeLogs, openLogsModal, fetchLogs,
+      confirmDialog, openConfirm, executeConfirmAction, toast, showToast
+    };
+  }
+}).mount("#app");
+</script>
 </body>
 </html>
+        
