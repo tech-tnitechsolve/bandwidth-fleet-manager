@@ -11,11 +11,11 @@ import subprocess
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from fastapi import FastAPI, HTTPException, Depends, status, Header
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 from typing import List, Optional
 
-CURRENT_VERSION = "v1.5.0"
+CURRENT_VERSION = "v1.5.3"
 GITHUB_REPO = "tech-tnitechsolve/bandwidth-fleet-manager"
 
 app = FastAPI(title="Bandwidth Fleet Manager Pro Engine", version=CURRENT_VERSION)
@@ -23,6 +23,7 @@ client = docker.from_env()
 
 DATA_DIR = "/opt/bandwidth-manager/data"
 NODES_FILE = f"{DATA_DIR}/nodes.json"
+DATA_FILE = NODES_FILE
 ACCOUNTS_FILE = f"{DATA_DIR}/accounts.json"
 SETTINGS_FILE = f"{DATA_DIR}/settings.json"
 ENV_FILE = "/opt/bandwidth-manager/.env"
@@ -34,8 +35,18 @@ JWT_SECRET = os.environ.get("JWT_SECRET", "super-secret-key-123")
 last_net_time = 0.0
 last_rx_bytes = 0
 last_tx_bytes = 0
-
 PID_CACHE = {}
+
+STEADY_CPU_PERCENT = 0.0
+def cpu_sampler_thread():
+    global STEADY_CPU_PERCENT
+    while True:
+        try:
+            STEADY_CPU_PERCENT = psutil.cpu_percent(interval=1.0)
+        except Exception: pass
+        time.sleep(2)
+
+threading.Thread(target=cpu_sampler_thread, daemon=True).start()
 
 def load_json(path, default=None):
     if default is None:
@@ -50,6 +61,20 @@ def save_json(path, data):
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
 
+# HÀM LOAD NODES AN TOÀN TUYỆT ĐỐI (TỰ SỬA NẾU FILE BỊ DICT)
+def load_nodes():
+    data = load_json(NODES_FILE, default=[])
+    if isinstance(data, dict):
+        data = data.get("profiles", data.get("nodes", []))
+    if not isinstance(data, list):
+        data = []
+    return data
+
+def save_nodes(nodes):
+    if not isinstance(nodes, list):
+        nodes = []
+    save_json(NODES_FILE, nodes)
+
 def generate_token(username: str) -> str:
     raw = f"{username}:{ADMIN_PASS}:{JWT_SECRET}"
     return hashlib.sha256(raw.encode()).hexdigest()
@@ -63,6 +88,11 @@ def get_current_user(authorization: Optional[str] = Header(None)):
     if token != expected:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Phiên đăng nhập hết hạn")
     return ADMIN_USER
+
+# CHẶN LỖI 404 FAVICON TRONG CONSOLE
+@app.get("/favicon.ico")
+def favicon():
+    return Response(status_code=204)
 
 class LoginRequest(BaseModel):
     username: str
@@ -104,7 +134,6 @@ def change_password(req: ChangePasswordRequest, user: str = Depends(get_current_
     token = generate_token(ADMIN_USER)
     return {"success": True, "new_token": token}
 
-# CHECK LIVE TCP TRỰC TIẾP TỪ IP GỐC CỦA VPS
 def check_proxy_live_raw(endpoint: str, timeout: float = 2.5):
     try:
         if ":" not in endpoint:
@@ -118,7 +147,6 @@ def check_proxy_live_raw(endpoint: str, timeout: float = 2.5):
     except Exception:
         return {"is_live": False, "ping_ms": 0}
 
-# 1. ĐO TẢI MẠNG VẬT LÝ VPS (MBPS & DROP PACKETS)
 def get_vps_network_load():
     global last_net_time, last_rx_bytes, last_tx_bytes
     default_iface = "eth0"
@@ -187,7 +215,6 @@ def get_vps_network_load():
         "is_choking": is_choking
     }
 
-# 2. ĐO LƯU LƯỢNG TỪNG NODE (ZERO-PROBE TỪ PROC KERNEL)
 def get_node_network_stats(node_id):
     tun_name = f"tun_{node_id}"
     pid = PID_CACHE.get(node_id, 0)
@@ -232,7 +259,7 @@ def get_node_network_stats(node_id):
                 with open(proto, "r") as f:
                     for l in f.readlines()[1:]:
                         parts = l.strip().split()
-                        if len(parts) >= 4 and parts[3] == "01": # TCP_ESTABLISHED
+                        if len(parts) >= 4 and parts[3] == "01":
                             sockets += 1
             except Exception: pass
                         
@@ -243,7 +270,6 @@ def get_node_network_stats(node_id):
         "status": "running"
     }
 
-# 3. ĐO NHIỆT ĐỘ VÀ SỨC KHỎE HỆ THỐNG
 def get_system_temperature():
     try:
         if hasattr(psutil, "sensors_temperatures"):
@@ -283,7 +309,7 @@ def get_system_stats(user: str = Depends(get_current_user)):
                     break
     except Exception: pass
 
-    cpu_pct = psutil.cpu_percent(interval=None)
+    cpu_pct = STEADY_CPU_PERCENT
     score = 100
     if "RO" in disk_mode: score = 0
     if cpu_pct > 85: score -= 20
@@ -343,12 +369,10 @@ def set_vps_alias(req: VpsAliasRequest, user: str = Depends(get_current_user)):
     save_json(SETTINGS_FILE, settings)
     return {"success": True, "vps_alias": settings["vps_alias"]}
 
-# 4. BẢNG SYSTEM AUDIT ĐÃ ĐƯỢC CHUẨN HÓA KIỂM TRA CHÍNH XÁC
 @app.get("/api/system/audit")
 def system_audit(user: str = Depends(get_current_user)):
     items = []
     
-    # 1. Check Docker
     docker_ok = False
     docker_ver = "Không phát hiện"
     try:
@@ -357,11 +381,9 @@ def system_audit(user: str = Depends(get_current_user)):
     except Exception: pass
     items.append({"name": "Docker Engine Daemon", "status": docker_ok, "detail": f"Phiên bản {docker_ver}"})
     
-    # 2. Check /dev/net/tun
     tun_ok = os.path.exists("/dev/net/tun")
     items.append({"name": "Card Mạng Ảo /dev/net/tun", "status": tun_ok, "detail": "Sẵn sàng" if tun_ok else "Thiếu thiết bị tun"})
 
-    # 3. Check BBR
     bbr_ok = False
     try:
         with open("/proc/sys/net/ipv4/tcp_congestion_control", "r") as f:
@@ -369,7 +391,6 @@ def system_audit(user: str = Depends(get_current_user)):
     except Exception: pass
     items.append({"name": "Thuật Toán BBR Congestion Control", "status": bbr_ok, "detail": "BBR Đang hoạt động" if bbr_ok else "Chưa kích hoạt BBR"})
 
-    # 4. Check ZRAM (Kiểm tra cả swapon lẫn sysfs zram0)
     zram_ok = False
     zram_detail = "Chưa bật ZRAM"
     try:
@@ -381,9 +402,8 @@ def system_audit(user: str = Depends(get_current_user)):
             zram_ok = True
             zram_detail = "ZRAM Block Device Active"
     except Exception: pass
-    items.append({"name": "Bộ Nhớ Nén ZRAM ZSTD", "status": zram_ok, "detail": zram_detail})
+    items.append({"name": "Bộ Nhớ Nén ZRAM ZSTD", "status": zram_ok, "detail": zram_detail, "can_fix": not zram_ok})
 
-    # 5. Check File Descriptors (nofile)
     ulimit_val = 0
     try:
         import resource
@@ -391,7 +411,6 @@ def system_audit(user: str = Depends(get_current_user)):
     except Exception: pass
     items.append({"name": "Giới Hạn File Descriptors (nofile)", "status": ulimit_val >= 65536, "detail": f"Hiện tại: {ulimit_val} (Khuyến nghị >= 65536)"})
 
-    # 6. Check Conntrack Max
     ct_max = 0
     try:
         with open("/proc/sys/net/netfilter/nf_conntrack_max", "r") as f:
@@ -399,12 +418,29 @@ def system_audit(user: str = Depends(get_current_user)):
     except Exception: pass
     items.append({"name": "Bảng Theo Dõi Mạng (Conntrack Max)", "status": ct_max >= 262144, "detail": f"Sức chứa {ct_max} streams"})
 
-    # 7. Check Port 3100 Firewall
     items.append({"name": "Tường Lửa Port 3100 (Web Dashboard)", "status": True, "detail": "Đã cấu hình tự động mở trên host"})
 
     return items
 
-# 5. CÁC TÁC VỤ KIỂM SOÁT SÂU VPS
+# KÍCH HOẠT ZRAM TRỰC TIẾP TỪ NÚT BẤM WEB
+@app.post("/api/system/enable-zram")
+def enable_zram(user: str = Depends(get_current_user)):
+    try:
+        subprocess.run("apt-get install -y linux-modules-extra-$(uname -r) 2>/dev/null || true", shell=True)
+        subprocess.run("modprobe zram num_devices=1 2>/dev/null || true", shell=True)
+        subprocess.run("""
+        if [ -b /dev/zram0 ]; then
+          swapoff /dev/zram0 2>/dev/null || true
+          echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null || echo lz4 > /sys/block/zram0/comp_algorithm 2>/dev/null || true
+          echo 2147483648 > /sys/block/zram0/disksize 2>/dev/null || true
+          mkswap /dev/zram0 2>/dev/null || true
+          swapon -p 10 /dev/zram0 2>/dev/null || true
+        fi
+        """, shell=True)
+        return {"success": True, "message": "Đã kích hoạt ZRAM ZSTD thành công!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/system/clean-ram")
 def clean_ram_cache(user: str = Depends(get_current_user)):
     try:
@@ -431,12 +467,12 @@ def prune_docker(user: str = Depends(get_current_user)):
 def reboot_vps(user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
-        stop_node_containers(n["id"])
+        if isinstance(n, dict) and "id" in n:
+            stop_node_containers(n["id"])
     cmd = "sleep 2 && reboot"
     subprocess.Popen(cmd, shell=True)
     return {"success": True, "message": "VPS đang khởi động lại an toàn..."}
 
-# 6. OTA UPDATE
 @app.get("/api/system/check-update")
 def check_update(user: str = Depends(get_current_user)):
     try:
@@ -464,7 +500,6 @@ def apply_update(user: str = Depends(get_current_user)):
     subprocess.Popen(cmd, shell=True)
     return {"status": "updating"}
 
-# 7. LOGS TỪNG CONTAINER
 @app.get("/api/nodes/{nid}/logs")
 def get_node_logs(nid: str, user: str = Depends(get_current_user)):
     app_log = ""
@@ -489,11 +524,11 @@ class AccountModel(BaseModel):
 
 @app.get("/api/accounts")
 def get_accounts(user: str = Depends(get_current_user)):
-    return load_json(ACCOUNTS_FILE)
+    return load_json(ACCOUNTS_FILE, default=[])
 
 @app.post("/api/accounts")
 def create_account(req: AccountModel, user: str = Depends(get_current_user)):
-    accounts = load_json(ACCOUNTS_FILE)
+    accounts = load_json(ACCOUNTS_FILE, default=[])
     acc_id = str(uuid.uuid4())[:8]
     data = req.dict()
     data["id"] = acc_id
@@ -503,8 +538,8 @@ def create_account(req: AccountModel, user: str = Depends(get_current_user)):
 
 @app.delete("/api/accounts/{acc_id}")
 def delete_account(acc_id: str, user: str = Depends(get_current_user)):
-    accounts = load_json(ACCOUNTS_FILE)
-    accounts = [a for a in accounts if a["id"] != acc_id]
+    accounts = load_json(ACCOUNTS_FILE, default=[])
+    accounts = [a for a in accounts if a.get("id") != acc_id]
     save_json(ACCOUNTS_FILE, accounts)
     return {"success": True}
 
@@ -570,53 +605,55 @@ def parse_proxy_line(line: str, prefix: str, current_idx: int):
 
 @app.post("/api/nodes/import")
 def import_nodes(req: ImportBatchModel, user: str = Depends(get_current_user)):
-    nodes = load_nodes()
-    lines = req.proxies_raw.strip().split("\n")
-    start_idx = len(nodes) + 1
-    added = 0
-    for i, line in enumerate(lines):
-        parsed = parse_proxy_line(line, req.prefix, start_idx + i)
-        if not parsed:
-            continue
-        node_id = str(uuid.uuid4())[:8]
-        node = {
-            "id": node_id,
-            "account_name": req.account_name.strip(),
-            "platform": req.platform.strip(),
-            "provider": req.provider.strip(),
-            "device_name": parsed["device_name"],
-            "protocol": parsed["protocol"],
-            "endpoint": parsed["endpoint"],
-            "proxy_url": parsed["proxy_url"],
-            "auth": {
-                "token": req.token.strip() if req.token else "",
-                "email": req.email.strip() if req.email else "",
-                "password": req.password.strip() if req.password else ""
-            },
-            "ping_ms": 0,
-            "is_live": True,
-            "status": "stopped"
-        }
-        nodes.append(node)
-        added += 1
-    save_nodes(nodes)
-    
-    if req.account_name:
-        accounts = load_json(ACCOUNTS_FILE)
-        if not any(a["account_name"] == req.account_name.strip() and a["platform"] == req.platform.strip() for a in accounts):
-            accounts.append({
-                "id": str(uuid.uuid4())[:8],
-                "account_name": req.account_name.strip(),
-                "platform": req.platform.strip(),
-                "token": req.token.strip() if req.token else "",
-                "email": req.email.strip() if req.email else "",
-                "password": req.password.strip() if req.password else ""
-            })
-            save_json(ACCOUNTS_FILE, accounts)
-            
-    return {"added": added, "total": len(nodes)}
+    try:
+        nodes = load_nodes()
+        lines = req.proxies_raw.strip().split("\n")
+        start_idx = len(nodes) + 1
+        added = 0
+        for i, line in enumerate(lines):
+            parsed = parse_proxy_line(line, req.prefix, start_idx + i)
+            if not parsed:
+                continue
+            node_id = str(uuid.uuid4())[:8]
+            node = {
+                "id": node_id,
+                "account_name": req.account_name.strip() if req.account_name else "Default",
+                "platform": req.platform.strip() if req.platform else "traffmonetizer",
+                "provider": req.provider.strip() if req.provider else "Other",
+                "device_name": parsed["device_name"],
+                "protocol": parsed["protocol"],
+                "endpoint": parsed["endpoint"],
+                "proxy_url": parsed["proxy_url"],
+                "auth": {
+                    "token": req.token.strip() if req.token else "",
+                    "email": req.email.strip() if req.email else "",
+                    "password": req.password.strip() if req.password else ""
+                },
+                "ping_ms": 0,
+                "is_live": True,
+                "status": "stopped"
+            }
+            nodes.append(node)
+            added += 1
+        save_nodes(nodes)
+        
+        if req.account_name:
+            accounts = load_json(ACCOUNTS_FILE, default=[])
+            if not any(a.get("account_name") == req.account_name.strip() and a.get("platform") == req.platform.strip() for a in accounts):
+                accounts.append({
+                    "id": str(uuid.uuid4())[:8],
+                    "account_name": req.account_name.strip(),
+                    "platform": req.platform.strip(),
+                    "token": req.token.strip() if req.token else "",
+                    "email": req.email.strip() if req.email else "",
+                    "password": req.password.strip() if req.password else ""
+                })
+                save_json(ACCOUNTS_FILE, accounts)
+                
+        return {"added": added, "total": len(nodes)}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Lỗi khi lưu node: {str(e)}")
 
-# KHỞI CHẠY CONTAINER: CPU FULL POWER (1024), RAM LINH HOẠT TỐI ĐA (FLOOR 8-15M)
 def run_node_containers(n):
     tun_name = f"tun_{n['id']}"
     app_name = f"app_{n['id']}"
@@ -633,7 +670,6 @@ def run_node_containers(n):
     try: client.containers.get(tun_name).remove(force=True)
     except Exception: pass
 
-    # TUN2PROXY: KHÔNG BÓP CPU, RAM SÀN CHỈ 8MB
     c_tun = client.containers.run(
         image="ghcr.io/tun2proxy/tun2proxy:v0.8.3",
         name=tun_name,
@@ -665,7 +701,6 @@ def run_node_containers(n):
     vols = {m_file: {"bind": "/etc/machine-id", "mode": "ro"}}
     REST_POL = {"Name": "on-failure", "MaximumRetryCount": 3}
     
-    # MỌI NỀN TẢNG: CPU ĐẦY ĐỦ 1024, SÀN RAM NHẸ 15M, TỰ DO BURST BĂNG THÔNG
     if plt == "traffmonetizer":
         data_dir = f"/opt/bandwidth-manager/data/traff_{node_id}"
         os.makedirs(data_dir, exist_ok=True)
@@ -753,21 +788,28 @@ def stop_node_containers(nid):
 
 @app.get("/api/nodes")
 def get_nodes(user: str = Depends(get_current_user)):
-    nodes = load_nodes()
-    for n in nodes:
-        metrics = get_node_network_stats(n["id"])
-        n["traffic_mb"] = metrics["traffic_mb"]
-        n["traffic_gb"] = metrics["traffic_gb"]
-        n["sockets"] = metrics["sockets"]
-        n["status"] = metrics["status"]
-    return nodes
+    try:
+        nodes = load_nodes()
+        valid_nodes = []
+        for n in nodes:
+            if not isinstance(n, dict) or "id" not in n:
+                continue
+            metrics = get_node_network_stats(n["id"])
+            n["traffic_mb"] = metrics.get("traffic_mb", 0.0)
+            n["traffic_gb"] = metrics.get("traffic_gb", 0.0)
+            n["sockets"] = metrics.get("sockets", 0)
+            n["status"] = metrics.get("status", "stopped")
+            valid_nodes.append(n)
+        return valid_nodes
+    except Exception as e:
+        return []
 
 @app.post("/api/nodes/{nid}/check")
 def check_single_node(nid: str, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
-        if n["id"] == nid:
-            res = check_proxy_live_raw(n["endpoint"])
+        if isinstance(n, dict) and n.get("id") == nid:
+            res = check_proxy_live_raw(n.get("endpoint", ""))
             n["is_live"] = res["is_live"]
             n["ping_ms"] = res["ping_ms"]
             save_nodes(nodes)
@@ -781,7 +823,8 @@ def check_all_nodes(user: str = Depends(get_current_user)):
         return {"total": 0, "live": 0, "dead": 0}
 
     def worker_check(node):
-        res = check_proxy_live_raw(node["endpoint"])
+        if not isinstance(node, dict): return False
+        res = check_proxy_live_raw(node.get("endpoint", ""))
         node["is_live"] = res["is_live"]
         node["ping_ms"] = res["ping_ms"]
         return res["is_live"]
@@ -796,10 +839,10 @@ def check_all_nodes(user: str = Depends(get_current_user)):
 @app.delete("/api/nodes/dead")
 def delete_dead_nodes(user: str = Depends(get_current_user)):
     nodes = load_nodes()
-    dead_ids = [n["id"] for n in nodes if not n.get("is_live", True)]
+    dead_ids = [n["id"] for n in nodes if isinstance(n, dict) and not n.get("is_live", True)]
     for did in dead_ids:
         stop_node_containers(did)
-    nodes = [n for n in nodes if n["id"] not in dead_ids]
+    nodes = [n for n in nodes if isinstance(n, dict) and n.get("id") not in dead_ids]
     save_nodes(nodes)
     return {"deleted": len(dead_ids)}
 
@@ -807,7 +850,7 @@ def delete_dead_nodes(user: str = Depends(get_current_user)):
 def start_node(nid: str, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
-        if n["id"] == nid:
+        if isinstance(n, dict) and n.get("id") == nid:
             run_node_containers(n)
             n["status"] = "running"
             save_nodes(nodes)
@@ -818,7 +861,7 @@ def start_node(nid: str, user: str = Depends(get_current_user)):
 def stop_node(nid: str, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
-        if n["id"] == nid:
+        if isinstance(n, dict) and n.get("id") == nid:
             stop_node_containers(nid)
             n["status"] = "stopped"
             save_nodes(nodes)
@@ -835,7 +878,7 @@ class EditNodeModel(BaseModel):
 def update_node(nid: str, req: EditNodeModel, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
-        if n["id"] == nid:
+        if isinstance(n, dict) and n.get("id") == nid:
             parsed = parse_proxy_line(req.proxy_url, "", 0)
             if not parsed:
                 raise HTTPException(status_code=400, detail="Proxy không hợp lệ")
@@ -850,7 +893,7 @@ def update_node(nid: str, req: EditNodeModel, user: str = Depends(get_current_us
             n["is_live"] = res["is_live"]
             n["ping_ms"] = res["ping_ms"]
             
-            if n["status"] == "running":
+            if n.get("status") == "running":
                 stop_node_containers(nid)
                 run_node_containers(n)
             save_nodes(nodes)
@@ -861,7 +904,7 @@ def update_node(nid: str, req: EditNodeModel, user: str = Depends(get_current_us
 def delete_node(nid: str, user: str = Depends(get_current_user)):
     nodes = load_nodes()
     stop_node_containers(nid)
-    nodes = [n for n in nodes if n["id"] != nid]
+    nodes = [n for n in nodes if isinstance(n, dict) and n.get("id") != nid]
     save_nodes(nodes)
     return {"status": "deleted"}
 
@@ -869,7 +912,7 @@ def delete_node(nid: str, user: str = Depends(get_current_user)):
 def bulk_start(req: List[str], user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
-        if n["id"] in req:
+        if isinstance(n, dict) and n.get("id") in req:
             run_node_containers(n)
             n["status"] = "running"
     save_nodes(nodes)
@@ -879,7 +922,7 @@ def bulk_start(req: List[str], user: str = Depends(get_current_user)):
 def bulk_stop(req: List[str], user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for n in nodes:
-        if n["id"] in req:
+        if isinstance(n, dict) and n.get("id") in req:
             stop_node_containers(n["id"])
             n["status"] = "stopped"
     save_nodes(nodes)
@@ -890,7 +933,7 @@ def bulk_delete(req: List[str], user: str = Depends(get_current_user)):
     nodes = load_nodes()
     for nid in req:
         stop_node_containers(nid)
-    nodes = [n for n in nodes if n["id"] not in req]
+    nodes = [n for n in nodes if isinstance(n, dict) and n.get("id") not in req]
     save_nodes(nodes)
     return {"status": "bulk_deleted"}
 
@@ -899,12 +942,11 @@ def index():
     with open("/opt/bandwidth-manager/index.html", "r") as f:
         return f.read()
 
-# KHỞI ĐỘNG TỪ TỪ KHI VPS REBOOT (STAGGERED AUTO-BOOT)
 def staggered_boot_daemon():
     time.sleep(5)
     nodes = load_nodes()
     for n in nodes:
-        if n.get("status") == "running":
+        if isinstance(n, dict) and n.get("status") == "running":
             tun_name = f"tun_{n['id']}"
             try:
                 c = client.containers.get(tun_name)

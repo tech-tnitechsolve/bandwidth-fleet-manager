@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bandwidth Fleet Manager — Pro Dashboard v1.4.0</title>
+  <title>Bandwidth Fleet Manager — NextGen Dashboard v1.5.2</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
@@ -21,7 +21,15 @@
 <body class="min-h-screen text-sm">
 <div id="app">
 
-  <!-- ==================== 1. MÀN HÌNH ĐĂNG NHẬP ==================== -->
+  <!-- TOAST NOTIFICATION GÓC MÀN HÌNH -->
+  <div v-if="toast.show" class="fixed top-5 right-5 z-50 transition-all duration-300">
+    <div :class="toast.type === 'success' ? 'bg-emerald-950 border-emerald-600 text-emerald-300' : 'bg-rose-950 border-rose-600 text-rose-300'" class="px-5 py-3 rounded-xl border shadow-2xl flex items-center gap-3 text-sm font-semibold">
+      <i :class="toast.type === 'success' ? 'fa fa-check-circle text-emerald-400' : 'fa fa-exclamation-circle text-rose-400'"></i>
+      <span>{{ toast.message }}</span>
+    </div>
+  </div>
+
+  <!-- 1. MÀN HÌNH ĐĂNG NHẬP -->
   <div v-if="!isLoggedIn" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-[#090d16] via-[#0f172a] to-[#090d16]">
     <div class="card-panel w-full max-w-md p-8 rounded-2xl shadow-2xl space-y-6 border border-gray-800">
       <div class="text-center space-y-2">
@@ -52,10 +60,6 @@
           </div>
         </div>
 
-        <div v-if="loginError" class="p-3 bg-rose-950/60 border border-rose-800 text-rose-300 rounded-xl text-center text-xs font-medium">
-          {{ loginError }}
-        </div>
-
         <button type="submit" :disabled="loginLoading" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white transition flex items-center justify-center gap-2">
           <span v-if="loginLoading" class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
           <span>Đăng Nhập</span>
@@ -64,7 +68,7 @@
     </div>
   </div>
 
-  <!-- ==================== 2. MÀN HÌNH DASHBOARD ==================== -->
+  <!-- 2. DASHBOARD CHÍNH -->
   <div v-else class="space-y-6">
 
     <!-- TOP NAVBAR -->
@@ -114,11 +118,9 @@
 
     <main class="max-w-7xl mx-auto px-6 space-y-6 pb-12">
 
-      <!-- ==================== TAB 1: TỔNG QUAN PHẦN CỨNG & BĂNG THÔNG ==================== -->
+      <!-- TAB 1: TỔNG QUAN -->
       <section v-if="currentTab === 'overview'" class="space-y-6">
-        
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <!-- CARD ĐỘ ỔN ĐỊNH HỆ THỐNG -->
           <div class="card-panel p-5 rounded-2xl border-l-4" :class="sys.health_score >= 80 ? 'border-emerald-500' : 'border-amber-500'">
             <div class="flex justify-between items-center text-xs text-gray-400 font-bold uppercase">
               <span>ĐỘ ỔN ĐỊNH MÁY CHỦ</span>
@@ -126,14 +128,11 @@
                 Score: {{ sys.health_score }}%
               </span>
             </div>
-            <div class="text-base font-extrabold text-white mt-2">
-              {{ sys.health_status }}
-            </div>
+            <div class="text-base font-extrabold text-white mt-2">{{ sys.health_status }}</div>
             <div class="text-xs text-gray-400 mt-2">Uptime: <b class="text-emerald-400 font-mono">{{ sys.uptime }}</b></div>
             <div class="text-xs text-gray-400 mt-1">Nhiệt độ CPU: <b class="text-amber-400 font-mono">{{ sys.temperature }}</b></div>
           </div>
 
-          <!-- CARD BĂNG THÔNG REALTIME -->
           <div class="card-panel p-5 rounded-2xl border-l-4" :class="sys.network?.is_choking ? 'border-rose-500' : 'border-indigo-500'">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold">BĂNG THÔNG VPS ({{ sys.network?.interface }})</span>
@@ -152,7 +151,6 @@
             </div>
           </div>
 
-          <!-- CARD RAM VẬT LÝ -->
           <div class="card-panel p-5 rounded-2xl">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold">RAM VẬT LÝ</span>
@@ -165,7 +163,6 @@
             <div class="text-xs text-emerald-400 mt-1 font-mono">Trống: {{ sys.ram_free_mb }} MB</div>
           </div>
 
-          <!-- CARD SWAP CHI TIẾT -->
           <div class="card-panel p-5 rounded-2xl">
             <div class="flex justify-between items-center text-xs text-gray-400">
               <span class="font-bold">BỘ NHỚ SWAP / ZRAM</span>
@@ -179,7 +176,6 @@
           </div>
         </div>
 
-        <!-- ROW 2: Ổ ĐĨA & CPU -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div class="card-panel p-5 rounded-2xl space-y-3">
             <div class="flex justify-between items-center text-xs text-gray-400">
@@ -210,32 +206,16 @@
           </div>
         </div>
 
-        <!-- FLEET SUMMARY COUNTERS -->
         <div class="card-panel p-6 rounded-2xl grid grid-cols-2 md:grid-cols-5 gap-6 text-center">
-          <div>
-            <div class="text-xs text-gray-400 font-bold uppercase">Tổng Số Node</div>
-            <div class="text-3xl font-extrabold text-white mt-1">{{ nodes.length }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-400 font-bold uppercase">Đang Online</div>
-            <div class="text-3xl font-extrabold text-emerald-400 mt-1">{{ runningCount }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-400 font-bold uppercase">Proxy Live</div>
-            <div class="text-3xl font-extrabold text-blue-400 mt-1">{{ liveCount }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-400 font-bold uppercase">Proxy Dead</div>
-            <div class="text-3xl font-extrabold text-rose-400 mt-1">{{ deadCount }}</div>
-          </div>
-          <div>
-            <div class="text-xs text-gray-400 font-bold uppercase">Tổng Data Kéo</div>
-            <div class="text-3xl font-extrabold text-amber-400 mt-1 font-mono">{{ totalTrafficGb }} <span class="text-sm font-normal">GB</span></div>
-          </div>
+          <div><div class="text-xs text-gray-400 font-bold uppercase">Tổng Số Node</div><div class="text-3xl font-extrabold text-white mt-1">{{ nodes.length }}</div></div>
+          <div><div class="text-xs text-gray-400 font-bold uppercase">Đang Online</div><div class="text-3xl font-extrabold text-emerald-400 mt-1">{{ runningCount }}</div></div>
+          <div><div class="text-xs text-gray-400 font-bold uppercase">Proxy Live</div><div class="text-3xl font-extrabold text-blue-400 mt-1">{{ liveCount }}</div></div>
+          <div><div class="text-xs text-gray-400 font-bold uppercase">Proxy Dead</div><div class="text-3xl font-extrabold text-rose-400 mt-1">{{ deadCount }}</div></div>
+          <div><div class="text-xs text-gray-400 font-bold uppercase">Tổng Data Kéo</div><div class="text-3xl font-extrabold text-amber-400 mt-1 font-mono">{{ totalTrafficGb }} <span class="text-sm font-normal">GB</span></div></div>
         </div>
       </section>
 
-      <!-- ==================== TAB 2: QUẢN LÝ TỪNG NODE (FLEET NODES - CÓ PHÂN TRANG) ==================== -->
+      <!-- TAB 2: QUẢN LÝ TỪNG NODE (FLEET NODES) -->
       <section v-if="currentTab === 'nodes'" class="space-y-4">
         <div class="card-panel p-4 rounded-2xl space-y-4">
           <div class="flex flex-wrap items-center justify-between gap-4">
@@ -244,7 +224,7 @@
                 <i :class="checkLoading ? 'fa fa-spinner fa-spin' : 'fa fa-satellite-dish'"></i>
                 <span>Check Live Toàn Bộ</span>
               </button>
-              <button @click="deleteDeadNodes" :disabled="deadCount === 0" class="px-3.5 py-2 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 disabled:opacity-30 text-rose-300 text-xs font-bold rounded-xl transition">
+              <button @click="triggerDeleteDead" :disabled="deadCount === 0" class="px-3.5 py-2 bg-rose-950/80 hover:bg-rose-900 border border-rose-800 disabled:opacity-30 text-rose-300 text-xs font-bold rounded-xl transition">
                 <i class="fa fa-filter mr-1"></i> Xóa Node Dead ({{ deadCount }})
               </button>
               <button @click="startSelected" :disabled="selectedIds.length === 0" class="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-xs font-bold rounded-xl text-white transition">
@@ -253,7 +233,7 @@
               <button @click="stopSelected" :disabled="selectedIds.length === 0" class="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-xs font-bold rounded-xl text-white transition">
                 <i class="fa fa-stop mr-1"></i> Tắt Đã Chọn ({{ selectedIds.length }})
               </button>
-              <button @click="deleteSelected" :disabled="selectedIds.length === 0" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-xs font-bold rounded-xl text-white transition">
+              <button @click="triggerDeleteSelected" :disabled="selectedIds.length === 0" class="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-xs font-bold rounded-xl text-white transition">
                 <i class="fa fa-trash mr-1"></i> Xóa Đã Chọn
               </button>
               <button @click="loadNodes" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-xs font-medium rounded-xl text-gray-300">
@@ -261,7 +241,6 @@
               </button>
             </div>
             
-            <!-- PHÂN TRANG (PAGINATION CONTROLS CHỐNG LAG) -->
             <div class="flex items-center gap-3 text-xs text-gray-400">
               <span>Hiển thị:</span>
               <select v-model="pageSize" class="bg-gray-900 border border-gray-700 rounded-lg p-1 text-white outline-none">
@@ -278,7 +257,6 @@
             </div>
           </div>
 
-          <!-- BỘ LỌC ĐA NĂNG -->
           <div class="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs pt-3 border-t border-gray-800">
             <div>
               <label class="text-gray-400 block mb-1">Lọc Platform</label>
@@ -312,7 +290,6 @@
           </div>
         </div>
 
-        <!-- BẢNG DANH SÁCH NODES -->
         <div class="card-panel rounded-2xl overflow-hidden border border-gray-800 shadow-xl">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
@@ -376,9 +353,9 @@
                   <td class="p-3.5 text-right space-x-1">
                     <button v-if="n.status !== 'running'" @click="startNode(n.id)" class="px-2.5 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded-lg text-xs" title="Bật Node"><i class="fa fa-play"></i></button>
                     <button v-else @click="stopNode(n.id)" class="px-2.5 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded-lg text-xs" title="Tắt Node"><i class="fa fa-stop"></i></button>
-                    <button @click="openLogsModal(n)" class="px-2 py-1 bg-indigo-900/60 hover:bg-indigo-700 text-indigo-300 hover:text-white rounded-lg text-xs" title="Xem Log Container"><i class="fa fa-terminal"></i></button>
-                    <button @click="openEditModal(n)" class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs" title="Sửa Proxy"><i class="fa fa-edit"></i></button>
-                    <button @click="deleteNode(n.id)" class="px-2 py-1 bg-rose-900/60 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs" title="Xóa Node"><i class="fa fa-trash"></i></button>
+                    <button @click="openLogsModal(n)" class="px-2.5 py-1 bg-indigo-900/60 hover:bg-indigo-700 text-indigo-300 hover:text-white rounded-lg text-xs" title="Xem Log Container"><i class="fa fa-terminal"></i></button>
+                    <button @click="openEditModal(n)" class="px-2.5 py-1 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg text-xs" title="Sửa Proxy"><i class="fa fa-edit"></i></button>
+                    <button @click="triggerDeleteNode(n)" class="px-2.5 py-1 bg-rose-900/60 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs" title="Xóa Node"><i class="fa fa-trash"></i></button>
                   </td>
                 </tr>
                 <tr v-if="filteredNodes.length === 0">
@@ -390,7 +367,7 @@
         </div>
       </section>
 
-      <!-- ==================== TAB 3: SỔ TÀI KHOẢN (SAVED ACCOUNTS) ==================== -->
+      <!-- TAB 3: SỔ TÀI KHOẢN -->
       <section v-if="currentTab === 'accounts'" class="space-y-4">
         <div class="card-panel p-6 rounded-2xl flex justify-between items-center">
           <div>
@@ -410,7 +387,7 @@
               <div v-if="acc.email" class="truncate">Email: <span class="text-gray-300">{{ acc.email }}</span></div>
             </div>
             <div class="pt-2 border-t border-gray-800 flex justify-end">
-              <button @click="deleteAccount(acc.id)" class="px-3 py-1 bg-rose-900/50 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs">
+              <button @click="triggerDeleteAccount(acc)" class="px-3 py-1 bg-rose-900/50 hover:bg-rose-700 text-rose-300 hover:text-white rounded-lg text-xs">
                 <i class="fa fa-trash mr-1"></i> Xóa Khỏi Sổ
               </button>
             </div>
@@ -421,23 +398,20 @@
         </div>
       </section>
 
-      <!-- ==================== TAB 4: BẢNG CÀI ĐẶT & AUDIT CHUYÊN SÂU ==================== -->
+      <!-- TAB 4: BẢNG CÀI ĐẶT & AUDIT -->
       <section v-if="currentTab === 'settings'" class="space-y-6">
-        <!-- ĐẶT TÊN VPS & ĐỔI MẬT KHẨU -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- ĐẶT TÊN ĐỊNH DANH VPS -->
           <div class="card-panel p-6 rounded-2xl space-y-4">
             <h3 class="text-sm font-bold text-white flex items-center gap-2">
-              <i class="fa fa-tag text-indigo-400"></i> Đặt Tên Định Danh Cho VPS (Quản Lý Hàng Trăm VPS)
+              <i class="fa fa-tag text-indigo-400"></i> Đặt Tên Định Danh Cho VPS
             </h3>
             <p class="text-xs text-gray-400">Tên này sẽ xuất hiện trên thanh tiêu đề và Header của Dashboard để bạn mở nhiều tab trình duyệt mà không bị nhầm lẫn.</p>
             <div class="flex gap-2">
-              <input v-model="vpsAliasInput" placeholder="Ví dụ: VPS-01-Decodo-US..." class="flex-1 bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs">
+              <input v-model="vpsAliasInput" placeholder="Ví dụ: OVH_CA_02..." class="flex-1 bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none text-xs">
               <button @click="saveVpsAlias" class="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl text-white text-xs">Lưu Tên</button>
             </div>
           </div>
 
-          <!-- ĐỔI MẬT KHẨU QUẢN TRỊ TRÊN WEB -->
           <div class="card-panel p-6 rounded-2xl space-y-4">
             <h3 class="text-sm font-bold text-white flex items-center gap-2">
               <i class="fa fa-key text-amber-400"></i> Đổi Mật Khẩu Quản Trị Web
@@ -452,7 +426,7 @@
           </div>
         </div>
 
-        <!-- BẢNG AUDIT RÀ SOÁT TẤT CẢ THÔNG SỐ VÀ SOURCE CÀI ĐẶT -->
+        <!-- BẢNG AUDIT HỆ THỐNG -->
         <div class="card-panel p-6 rounded-2xl space-y-4">
           <div class="flex justify-between items-center">
             <div>
@@ -461,18 +435,22 @@
               </h3>
               <p class="text-xs text-gray-400 mt-1">Kiểm tra toàn bộ các tham số hạt nhân Kernel, module mạng và độ an toàn phần cứng.</p>
             </div>
-            <button @click="loadAudit" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-xs text-gray-300">
-              <i class="fa fa-sync-alt mr-1"></i> Quét lại
+            <button @click="loadAuditWithFeedback" :disabled="auditLoading" class="px-3.5 py-2 bg-gray-800 hover:bg-gray-700 rounded-xl text-xs font-semibold text-gray-300 flex items-center gap-1.5 transition">
+              <i :class="auditLoading ? 'fa fa-spinner fa-spin' : 'fa fa-sync-alt'"></i>
+              <span>Quét lại</span>
             </button>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-            <div v-for="item in auditItems" :key="item.name" class="p-3 bg-gray-900/60 rounded-xl border border-gray-800 flex items-center justify-between">
+            <div v-for="item in auditItems" :key="item.name" class="p-3.5 bg-gray-900/60 rounded-xl border border-gray-800 flex items-center justify-between">
               <div>
                 <div class="font-bold text-gray-200">{{ item.name }}</div>
                 <div class="text-[11px] text-gray-400 mt-0.5">{{ item.detail }}</div>
               </div>
-              <div>
+              <div class="flex items-center gap-2">
+                <button v-if="item.can_fix" @click="fixZram" class="px-2 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold">
+                  Bật ZRAM Ngay
+                </button>
                 <span v-if="item.status" class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
                   <i class="fa fa-check"></i> ĐẠT CHUẨN
                 </span>
@@ -484,20 +462,18 @@
           </div>
         </div>
 
-        <!-- CÁC HÀNH ĐỘNG ĐIỀU KHIỂN SÂU VPS -->
         <div class="card-panel p-6 rounded-2xl space-y-4">
           <h3 class="text-sm font-bold text-white flex items-center gap-2">
             <i class="fa fa-cogs text-indigo-400"></i> Các Tác Vụ Kiểm Soát Sâu VPS (Deep Control Actions)
           </h3>
-          <p class="text-xs text-gray-400">Thực hiện bảo trì phần cứng, dọn rác hệ thống hoặc khởi động lại an toàn.</p>
           <div class="flex flex-wrap gap-3">
-            <button @click="cleanRam" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
+            <button @click="triggerCleanRam" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
               <i class="fa fa-broom text-amber-400"></i> Dọn Rác & Cache RAM (Drop Caches)
             </button>
-            <button @click="pruneDocker" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
+            <button @click="triggerPruneDocker" class="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 font-bold rounded-xl text-white text-xs flex items-center gap-2">
               <i class="fa fa-dumpster text-blue-400"></i> Dọn Rác Docker (Prune Containers/Images)
             </button>
-            <button @click="rebootVps" class="px-4 py-2.5 bg-rose-950 hover:bg-rose-900 border border-rose-800 font-bold rounded-xl text-rose-300 text-xs flex items-center gap-2">
+            <button @click="triggerRebootVps" class="px-4 py-2.5 bg-rose-950 hover:bg-rose-900 border border-rose-800 font-bold rounded-xl text-rose-300 text-xs flex items-center gap-2">
               <i class="fa fa-power-off text-rose-400"></i> Khởi Động Lại VPS An Toàn (Graceful Reboot)
             </button>
           </div>
@@ -505,6 +481,27 @@
       </section>
 
     </main>
+  </div>
+
+  <!-- ==================== BẢNG MODAL XÁC NHẬN CHUẨN ĐẸP GIỮA MÀN HÌNH (THAY THẾ CONFIRM POPUP) ==================== -->
+  <div v-if="confirmDialog.show" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
+    <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-center">
+      <div class="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center text-2xl" :class="confirmDialog.iconBg">
+        <i :class="confirmDialog.icon"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-white">{{ confirmDialog.title }}</h3>
+        <p class="text-xs text-gray-400 mt-1.5 leading-relaxed">{{ confirmDialog.message }}</p>
+      </div>
+      <div class="flex justify-center gap-3 pt-2">
+        <button @click="confirmDialog.show = false" class="px-5 py-2.5 bg-gray-800 hover:bg-gray-700 font-medium rounded-xl text-gray-300 text-xs">
+          Hủy Bỏ
+        </button>
+        <button @click="executeConfirmAction" :class="confirmDialog.btnColor" class="px-5 py-2.5 font-bold rounded-xl text-white text-xs transition">
+          {{ confirmDialog.btnText }}
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL XEM LOG CONTAINER -->
@@ -542,7 +539,7 @@
     </div>
   </div>
 
-  <!-- MODAL CẬP NHẬT OTA (VERSION UPDATE) -->
+  <!-- MODAL CẬP NHẬT OTA -->
   <div v-if="showOtaModal" class="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50">
     <div class="card-panel w-full max-w-md p-6 rounded-2xl space-y-4 border border-gray-800 shadow-2xl text-xs">
       <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -554,7 +551,7 @@
         <div class="text-[11px] text-gray-300 pt-1 border-t border-gray-800">Nội dung: {{ otaInfo.message }}</div>
       </div>
       <div class="p-2.5 bg-blue-950/40 border border-blue-800/60 rounded-xl text-blue-300 text-[11px]">
-        <i class="fa fa-shield-alt mr-1"></i> <b>Cam kết không rớt mạng:</b> Cập nhật chỉ khởi động lại giao diện Web, <b>KHÔNG chạm vào các container proxy đang cày</b> và không hao tốn dung lượng proxy.
+        <i class="fa fa-shield-alt mr-1"></i> <b>Cam kết không rớt mạng:</b> Cập nhật chỉ khởi động lại giao diện Web, <b>KHÔNG chạm vào các container proxy đang cày</b>.
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <button @click="showOtaModal = false" class="px-4 py-2 bg-gray-800 rounded-xl text-gray-300">Để Sau</button>
@@ -586,7 +583,7 @@
 
       <div class="grid grid-cols-2 gap-3.5">
         <div>
-          <label class="text-gray-400 block mb-1 text-xs font-semibold">Mã Tên Account (Để quản lý)</label>
+          <label class="text-gray-400 block mb-1 text-xs font-semibold">Mã Tên Account (Để quản trị)</label>
           <input v-model="form.account_name" placeholder="VD: Traff_VIP_01..." class="w-full bg-gray-900 border border-gray-700 rounded-xl p-2.5 text-white outline-none">
         </div>
         <div>
@@ -680,7 +677,46 @@ createApp({
     const accounts = ref([]);
     const selectedIds = ref([]);
     const checkLoading = ref(false);
+    const auditLoading = ref(false);
     const auditItems = ref([]);
+
+    // Toast Notification & Custom Modal State
+    const toast = ref({ show: false, message: "", type: "success" });
+    const showToast = (message, type = "success") => {
+      toast.value = { show: true, message, type };
+      setTimeout(() => { toast.value.show = false; }, 3500);
+    };
+
+    const confirmDialog = ref({
+      show: false,
+      title: "",
+      message: "",
+      icon: "fa-question-circle text-indigo-400",
+      iconBg: "bg-indigo-600/20",
+      btnText: "Xác Nhận",
+      btnColor: "bg-indigo-600 hover:bg-indigo-700",
+      action: null
+    });
+
+    const openConfirm = (opts) => {
+      confirmDialog.value = {
+        show: true,
+        title: opts.title || "Xác nhận hành động",
+        message: opts.message || "",
+        icon: opts.icon || "fa-question-circle text-indigo-400",
+        iconBg: opts.iconBg || "bg-indigo-600/20",
+        btnText: opts.btnText || "Xác Nhận",
+        btnColor: opts.btnColor || "bg-indigo-600 hover:bg-indigo-700",
+        action: opts.action || null
+      };
+    };
+
+    const executeConfirmAction = async () => {
+      if (confirmDialog.value.action) {
+        await confirmDialog.value.action();
+      }
+      confirmDialog.value.show = false;
+    };
 
     // Phân trang
     const currentPage = ref(1);
@@ -803,6 +839,24 @@ createApp({
       if (res.ok) auditItems.value = await res.json();
     };
 
+    const loadAuditWithFeedback = async () => {
+      auditLoading.value = true;
+      try {
+        await loadAudit();
+        showToast("Đã cập nhật lại bảng System Audit!", "success");
+      } finally {
+        auditLoading.value = false;
+      }
+    };
+
+    const fixZram = async () => {
+      const res = await fetch("/api/system/enable-zram", { method: "POST", headers: getAuthHeaders() });
+      const d = await res.json();
+      showToast(d.message || "Đã gửi lệnh bật ZRAM!", "success");
+      await loadAudit();
+      await loadSys();
+    };
+
     const saveVpsAlias = async () => {
       if (!vpsAliasInput.value) return;
       await fetch("/api/system/vps-alias", {
@@ -811,12 +865,12 @@ createApp({
         body: JSON.stringify({ vps_alias: vpsAliasInput.value })
       });
       loadSys();
-      alert("Đã cập nhật tên VPS thành công!");
+      showToast("Đã cập nhật tên VPS thành công!", "success");
     };
 
     const submitChangePassword = async () => {
       if (!passForm.value.old_password || !passForm.value.new_password) {
-        alert("Vui lòng điền đầy đủ mật khẩu cũ và mới!");
+        showToast("Vui lòng điền đầy đủ mật khẩu cũ và mới!", "error");
         return;
       }
       const res = await fetch("/api/auth/change-password", {
@@ -828,35 +882,59 @@ createApp({
       if (res.ok && data.new_token) {
         localStorage.setItem("fleet_token", data.new_token);
         passForm.value = { old_password: "", new_password: "" };
-        alert("Đã đổi mật khẩu thành công!");
+        showToast("Đã đổi mật khẩu thành công!", "success");
       } else {
-        alert(data.detail || "Đổi mật khẩu thất bại!");
+        showToast(data.detail || "Đổi mật khẩu thất bại!", "error");
       }
     };
 
-    const cleanRam = async () => {
-      if (confirm("Giải phóng cache RAM của Linux?")) {
-        const res = await fetch("/api/system/clean-ram", { method: "POST", headers: getAuthHeaders() });
-        const d = await res.json();
-        alert(d.message || "Đã dọn cache RAM!");
-        loadSys();
-      }
+    const triggerCleanRam = () => {
+      openConfirm({
+        title: "Giải phóng Bộ nhớ Cache RAM?",
+        message: "Hệ thống sẽ chạy lệnh drop_caches của Linux để giải phóng RAM đệm thừa mà không ảnh hưởng đến container.",
+        icon: "fa-broom text-amber-400",
+        iconBg: "bg-amber-600/20",
+        btnText: "Dọn Dẹp Ngay",
+        btnColor: "bg-amber-600 hover:bg-amber-700",
+        action: async () => {
+          const res = await fetch("/api/system/clean-ram", { method: "POST", headers: getAuthHeaders() });
+          const d = await res.json();
+          showToast(d.message || "Đã dọn cache RAM!", "success");
+          loadSys();
+        }
+      });
     };
 
-    const pruneDocker = async () => {
-      if (confirm("Dọn dẹp container và image Docker thừa?")) {
-        const res = await fetch("/api/system/prune-docker", { method: "POST", headers: getAuthHeaders() });
-        const d = await res.json();
-        alert(`Đã dọn dẹp ${d.containers_deleted} container thừa, giải phóng ${d.space_reclaimed_mb} MB!`);
-        loadSys();
-      }
+    const triggerPruneDocker = () => {
+      openConfirm({
+        title: "Dọn dẹp rác Docker thừa?",
+        message: "Hệ thống sẽ xóa sạch các container, network chết và image mồ côi để thu hồi dung lượng ổ cứng.",
+        icon: "fa-dumpster text-blue-400",
+        iconBg: "bg-blue-600/20",
+        btnText: "Dọn Rác Docker",
+        btnColor: "bg-blue-600 hover:bg-blue-700",
+        action: async () => {
+          const res = await fetch("/api/system/prune-docker", { method: "POST", headers: getAuthHeaders() });
+          const d = await res.json();
+          showToast(`Đã xóa ${d.containers_deleted} container rác, thu hồi ${d.space_reclaimed_mb} MB!`, "success");
+          loadSys();
+        }
+      });
     };
 
-    const rebootVps = async () => {
-      if (confirm("CẢNH BÁO: Khởi động lại toàn bộ VPS? Các container sẽ được dừng an toàn trước khi reboot.")) {
-        await fetch("/api/system/reboot-vps", { method: "POST", headers: getAuthHeaders() });
-        alert("VPS đang khởi động lại. Hãy đợi khoảng 1-2 phút rồi mở lại trang web!");
-      }
+    const triggerRebootVps = () => {
+      openConfirm({
+        title: "CẢNH BÁO: Khởi động lại VPS?",
+        message: "Tất cả các container sẽ được dừng an toàn trước khi reboot để tránh đứt socket. Hãy đợi khoảng 1-2 phút sau đó F5 lại trang.",
+        icon: "fa-power-off text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Khởi Động Lại Ngay",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch("/api/system/reboot-vps", { method: "POST", headers: getAuthHeaders() });
+          showToast("VPS đang khởi động lại. Hãy đợi 1-2 phút!", "success");
+        }
+      });
     };
 
     const checkOtaUpdate = async () => {
@@ -868,10 +946,10 @@ createApp({
           otaInfo.value = data;
           showOtaModal.value = true;
         } else {
-          alert("Hệ thống đang chạy phiên bản mới nhất!");
+          showToast("Hệ thống đang chạy phiên bản mới nhất!", "success");
         }
       } catch (e) {
-        alert("Không thể kiểm tra cập nhật từ GitHub.");
+        showToast("Không thể kiểm tra cập nhật từ GitHub", "error");
       } finally {
         otaChecking.value = false;
       }
@@ -881,10 +959,10 @@ createApp({
       otaUpdating.value = true;
       try {
         await fetch("/api/system/apply-update", { method: "POST", headers: getAuthHeaders() });
-        alert("Đang cập nhật... Trang web sẽ tự động làm mới sau 5 giây.");
+        showToast("Đang cập nhật... Trang sẽ tự làm mới sau 5 giây!", "success");
         setTimeout(() => { window.location.reload(); }, 5000);
       } catch (e) {
-        alert("Lỗi khi gửi yêu cầu cập nhật.");
+        showToast("Lỗi khi gửi yêu cầu cập nhật", "error");
       } finally {
         otaUpdating.value = false;
         showOtaModal.value = false;
@@ -918,16 +996,80 @@ createApp({
       try {
         await fetch("/api/nodes/check-all", { method: "POST", headers: getAuthHeaders() });
         await loadNodes();
+        showToast("Đã hoàn tất kiểm tra trạng thái toàn bộ Proxy!", "success");
       } finally {
         checkLoading.value = false;
       }
     };
 
-    const deleteDeadNodes = async () => {
-      if (confirm(`Bạn có chắc muốn xóa ${deadCount.value} node proxy đã chết?`)) {
-        await fetch("/api/nodes/dead", { method: "DELETE", headers: getAuthHeaders() });
-        loadNodes();
-      }
+    const triggerDeleteDead = () => {
+      openConfirm({
+        title: "Xóa toàn bộ Node Proxy Dead?",
+        message: `Bạn có chắc chắn muốn xóa ${deadCount.value} node proxy đã chết khỏi hệ thống?`,
+        icon: "fa-filter text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Xóa Proxy Dead",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch("/api/nodes/dead", { method: "DELETE", headers: getAuthHeaders() });
+          loadNodes();
+          showToast(`Đã xóa ${deadCount.value} node proxy chết!`, "success");
+        }
+      });
+    };
+
+    const triggerDeleteNode = (node) => {
+      openConfirm({
+        title: `Xóa Node ${node.device_name}?`,
+        message: `Hệ thống sẽ dừng app và hủy container TUN ${node.endpoint}. Hành động này không thể hoàn tác.`,
+        icon: "fa-trash text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Xóa Node",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch(`/api/nodes/${node.id}`, { method: "DELETE", headers: getAuthHeaders() });
+          loadNodes();
+          showToast(`Đã xóa node ${node.device_name}!`, "success");
+        }
+      });
+    };
+
+    const triggerDeleteAccount = (acc) => {
+      openConfirm({
+        title: `Xóa Tài Khoản ${acc.account_name}?`,
+        message: "Hành động này chỉ xóa thông tin lưu trong Sổ tài khoản, các container đang chạy sẽ không bị ảnh hưởng.",
+        icon: "fa-trash text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Xóa Khỏi Sổ",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch(`/api/accounts/${acc.id}`, { method: "DELETE", headers: getAuthHeaders() });
+          loadAccounts();
+          showToast("Đã xóa tài khoản khỏi sổ lưu!", "success");
+        }
+      });
+    };
+
+    const triggerDeleteSelected = () => {
+      openConfirm({
+        title: `Xóa ${selectedIds.value.length} Node Đã Chọn?`,
+        message: "Tất cả các node được tích chọn sẽ bị dừng container và xóa vĩnh viễn khỏi danh sách.",
+        icon: "fa-trash text-rose-400",
+        iconBg: "bg-rose-600/20",
+        btnText: "Xóa Đã Chọn",
+        btnColor: "bg-rose-600 hover:bg-rose-700",
+        action: async () => {
+          await fetch("/api/nodes/bulk/delete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            body: JSON.stringify(selectedIds.value)
+          });
+          const cnt = selectedIds.value.length;
+          selectedIds.value = [];
+          loadNodes();
+          showToast(`Đã xóa ${cnt} node được chọn!`, "success");
+        }
+      });
     };
 
     const pickSavedAccount = (e) => {
@@ -942,13 +1084,6 @@ createApp({
       }
     };
 
-    const deleteAccount = async (id) => {
-      if (confirm("Xóa tài khoản này khỏi sổ lưu?")) {
-        await fetch(`/api/accounts/${id}`, { method: "DELETE", headers: getAuthHeaders() });
-        loadAccounts();
-      }
-    };
-
     const runningCount = computed(() => nodes.value.filter(n => n.status === "running").length);
     const liveCount = computed(() => nodes.value.filter(n => n.is_live).length);
     const deadCount = computed(() => nodes.value.filter(n => !n.is_live).length);
@@ -960,9 +1095,10 @@ createApp({
 
     const filteredNodes = computed(() => {
       return nodes.value.filter(n => {
+        if (!n || typeof n !== 'object') return false;
         if (filterPlatform.value && n.platform !== filterPlatform.value) return false;
-        if (filterAccount.value && !n.account_name.toLowerCase().includes(filterAccount.value.toLowerCase())) return false;
-        if (filterProvider.value && !n.provider.toLowerCase().includes(filterProvider.value.toLowerCase())) return false;
+        if (filterAccount.value && !(n.account_name || "").toLowerCase().includes(filterAccount.value.toLowerCase())) return false;
+        if (filterProvider.value && !(n.provider || "").toLowerCase().includes(filterProvider.value.toLowerCase())) return false;
         if (filterStatus.value === "running" && n.status !== "running") return false;
         if (filterStatus.value === "stopped" && n.status !== "stopped") return false;
         if (filterStatus.value === "live" && !n.is_live) return false;
@@ -979,35 +1115,35 @@ createApp({
 
     const submitImport = async () => {
       if (!form.value.platform || !form.value.proxies_raw) {
-        alert("Vui lòng chọn Platform và dán danh sách proxy!");
+        showToast("Vui lòng chọn Platform và dán danh sách proxy!", "error");
         return;
       }
-      await fetch("/api/nodes/import", {
+      const res = await fetch("/api/nodes/import", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(form.value)
       });
-      showImportModal.value = false;
-      form.value.proxies_raw = "";
-      loadNodes();
-      loadAccounts();
+      if (res.ok) {
+        showImportModal.value = false;
+        form.value.proxies_raw = "";
+        loadNodes();
+        loadAccounts();
+        showToast("Khởi tạo Batch Node thành công!", "success");
+      } else {
+        showToast("Có lỗi xảy ra khi tạo Batch Node!", "error");
+      }
     };
 
     const startNode = async (id) => {
       await fetch(`/api/nodes/${id}/start`, { method: "POST", headers: getAuthHeaders() });
       loadNodes();
+      showToast("Đã gửi lệnh bật node!", "success");
     };
 
     const stopNode = async (id) => {
       await fetch(`/api/nodes/${id}/stop`, { method: "POST", headers: getAuthHeaders() });
       loadNodes();
-    };
-
-    const deleteNode = async (id) => {
-      if (confirm("Xóa node này và hủy container TUN tương ứng?")) {
-        await fetch(`/api/nodes/${id}`, { method: "DELETE", headers: getAuthHeaders() });
-        loadNodes();
-      }
+      showToast("Đã gửi lệnh tắt node!", "success");
     };
 
     const openEditModal = (node) => {
@@ -1016,13 +1152,18 @@ createApp({
     };
 
     const saveEditNode = async () => {
-      await fetch(`/api/nodes/${editNodeData.value.id}`, {
+      const res = await fetch(`/api/nodes/${editNodeData.value.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify(editNodeData.value)
       });
-      showEditModal.value = false;
-      loadNodes();
+      if (res.ok) {
+        showEditModal.value = false;
+        loadNodes();
+        showToast("Đã lưu và Hot-Reload node thành công!", "success");
+      } else {
+        showToast("Lỗi khi cập nhật proxy node!", "error");
+      }
     };
 
     const toggleSelectAll = (e) => {
@@ -1037,6 +1178,7 @@ createApp({
         body: JSON.stringify(selectedIds.value)
       });
       loadNodes();
+      showToast(`Đã bật ${selectedIds.value.length} node!`, "success");
     };
 
     const stopSelected = async () => {
@@ -1046,18 +1188,7 @@ createApp({
         body: JSON.stringify(selectedIds.value)
       });
       loadNodes();
-    };
-
-    const deleteSelected = async () => {
-      if (confirm(`Bạn có chắc chắn muốn xóa ${selectedIds.value.length} node đã chọn?`)) {
-        await fetch("/api/nodes/bulk/delete", {
-          method: "POST",
-          headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-          body: JSON.stringify(selectedIds.value)
-        });
-        selectedIds.value = [];
-        loadNodes();
-      }
+      showToast(`Đã tắt ${selectedIds.value.length} node!`, "success");
     };
 
     onMounted(() => {
@@ -1072,14 +1203,15 @@ createApp({
     return {
       isLoggedIn, loginLoading, loginError, showPass, loginForm, handleLogin, handleLogout,
       currentTab, sys, nodes, accounts, filteredNodes, paginatedNodes, selectedIds, runningCount, liveCount, deadCount, totalTrafficGb,
-      filterPlatform, filterAccount, filterProvider, filterStatus, checkLoading, auditItems,
+      filterPlatform, filterAccount, filterProvider, filterStatus, checkLoading, auditLoading, auditItems,
       currentPage, pageSize, totalPages,
-      vpsAliasInput, passForm, saveVpsAlias, submitChangePassword, cleanRam, pruneDocker, rebootVps, loadAudit,
-      showImportModal, showEditModal, form, editNodeData, pickSavedAccount, deleteAccount,
-      submitImport, startNode, stopNode, deleteNode, openEditModal, saveEditNode,
-      toggleSelectAll, startSelected, stopSelected, deleteSelected, loadNodes, checkSingleNode, checkAllLive, deleteDeadNodes,
+      vpsAliasInput, passForm, saveVpsAlias, submitChangePassword, triggerCleanRam, triggerPruneDocker, triggerRebootVps, loadAudit, loadAuditWithFeedback, fixZram,
+      showImportModal, showEditModal, form, editNodeData, pickSavedAccount, triggerDeleteAccount,
+      submitImport, startNode, stopNode, triggerDeleteNode, openEditModal, saveEditNode,
+      toggleSelectAll, startSelected, stopSelected, triggerDeleteSelected, loadNodes, checkSingleNode, checkAllLive, triggerDeleteDead,
       otaChecking, otaUpdating, showOtaModal, otaInfo, checkOtaUpdate, applyOtaUpdate,
-      showLogsModal, logLoading, logTab, activeLogNode, nodeLogs, openLogsModal, fetchLogs
+      showLogsModal, logLoading, logTab, activeLogNode, nodeLogs, openLogsModal, fetchLogs,
+      confirmDialog, openConfirm, executeConfirmAction, toast, showToast
     };
   }
 }).mount("#app");
