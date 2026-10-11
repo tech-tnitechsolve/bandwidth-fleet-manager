@@ -1,6 +1,7 @@
-# 🚀 Bandwidth Fleet Manager Pro v1.4.0
+# 🚀 Bandwidth Fleet Manager Pro v1.6.0
 
-Hệ thống Web GUI quản trị hạm đội Proxy & Node chia sẻ băng thông (Bandwidth Sharing) chuyên nghiệp trên VPS Linux. Thiết kế chuyên sâu cho các nền tảng: **Traffmonetizer, Honeygain, IPRoyal Pawns, Repocket, Bitping**.
+Hệ thống Web GUI quản trị hạm đội Proxy & Node chia sẻ băng thông (Bandwidth Sharing) chuyên nghiệp trên VPS Linux. Thiết kế chuyên sâu và tối ưu hóa 100% cho đúng 7 nền tảng:
+**Traffmonetizer, Honeygain, IPRoyal Pawns, Repocket, Bitping, EarnFM, PacketStream**.
 
 ---
 
@@ -13,6 +14,7 @@ Hệ thống Web GUI quản trị hạm đội Proxy & Node chia sẻ băng thô
 * **Staggered Auto-Boot**: Tự động phục hồi node từ từ sau khi VPS khởi động lại (1s delay mỗi node), không gây nghẽn CPU/Disk I/O.
 * **Xem Log Trực Tiếp Trên Web**: Đọc trực tiếp 100 dòng log của container App và TUN ngay trên giao diện web.
 * **Đo Tải Mạng & Dung Lượng Zero-Probe**: Đo tốc độ mạng vật lý VPS Mbps, cảnh báo nghẽn mạng và đo số GB từng node trực tiếp từ Kernel Linux (`/proc/[PID]/net/dev`).
+
 
 ---
 

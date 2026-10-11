@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #============================================================================
-#  install.sh - All-in-One Engine v1.6.0 (7 Platforms + tun2proxy Focused)
+#  install.sh - All-in-One Engine v1.6.0 (High-Concurrency Edition)
+#  Hỗ trợ chuẩn 7 nền tảng: Traffmon, Honeygain, Pawns, Repocket, Bitping, EarnFM, PacketStream
 #============================================================================
 set -Eeuo pipefail
 
@@ -32,29 +33,67 @@ while true; do
 done
 
 echo -e "\n[1/6] Dọn khóa APT & Cài đặt gói Kernel Modules..."
-systemctl stop apt-daily.service apt-daily-upgrade.service 2>/dev/null || true
+systemctl stop apt-daily.service apt-daily-upgrade.service unattended-upgrades.service 2>/dev/null || true
+systemctl disable apt-daily.service apt-daily-upgrade.service unattended-upgrades.service 2>/dev/null || true
 pkill -9 -f "apt|dpkg" 2>/dev/null || true
-rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock* 2>/dev/null || true
+rm -f /var/lib/apt/lists/lock /var/lib/dpkg/lock* /var/cache/apt/archives/lock* 2>/dev/null || true
 dpkg --configure -a 2>/dev/null || true
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y -qq
-apt-get install -y -qq linux-modules-extra-"$(uname -r)" util-linux curl jq python3 python3-pip python3-venv 2>/dev/null || true
+apt-get install -y -qq linux-modules-extra-"$(uname -r)" util-linux e2fsprogs curl jq python3 python3-pip python3-venv 2>/dev/null || true
 
-echo "[2/6] Kích hoạt Kernel Modules & Thiết bị TUN..."
-modprobe tun 2>/dev/null || true
+echo "[2/6] Kích hoạt Kernel Modules & Cấu hình /dev/net/tun..."
+mkdir -p /etc/modules-load.d
+cat > /etc/modules-load.d/fleet-modules.conf <<'EOF_MODS'
+zram
+tcp_bbr
+br_netfilter
+nf_conntrack
+tun
+EOF_MODS
+
+modprobe zram num_devices=1 2>/dev/null || true
 modprobe tcp_bbr 2>/dev/null || true
+modprobe tun 2>/dev/null || true
+
 mkdir -p /dev/net 2>/dev/null || true
 [[ -c /dev/net/tun ]] || mknod /dev/net/tun c 10 200 2>/dev/null || true
 chmod 666 /dev/net/tun 2>/dev/null || true
 
-echo "[3/6] Cài đặt Docker Engine..."
+echo "[3/6] Tối ưu hóa Kernel Sysctl & Giới hạn File Descriptors (1M nofile)..."
+ulimit -n 1048576 2>/dev/null || true
+mkdir -p /etc/security/limits.d
+cat > /etc/security/limits.d/99-fleet-nofile.conf << 'EOF_LIMITS'
+* soft nofile 1048576
+* hard nofile 1048576
+root soft nofile 1048576
+root hard nofile 1048576
+EOF_LIMITS
+
+cat > /etc/sysctl.d/99-fleet-core.conf << 'EOF_SYSCTL'
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+net.ipv4.ip_forward = 1
+vm.swappiness = 60
+fs.file-max = 2097152
+kernel.pid_max = 4194304
+net.core.somaxconn = 65535
+net.netfilter.nf_conntrack_max = 524288
+EOF_SYSCTL
+sysctl --system >/dev/null 2>&1 || true
+
+echo "[4/6] Cài đặt Docker & Mở cổng Firewall (${PORT})..."
 if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh
 fi
 systemctl enable --now docker >/dev/null 2>&1 || true
 
-echo "[4/6] Cài đặt Backend Python & Systemd Service..."
+iptables -I INPUT -p tcp --dport ${PORT} -j ACCEPT 2>/dev/null || true
+iptables -P FORWARD ACCEPT 2>/dev/null || true
+if command -v ufw >/dev/null 2>&1; then ufw allow ${PORT}/tcp >/dev/null 2>&1 || true; fi
+
+echo "[5/6] Cài đặt Backend Python & Tạo Systemd Daemon..."
 mkdir -p "$APP_DIR/data"
 python3 -m venv "$APP_DIR/venv"
 "$APP_DIR/venv/bin/pip" install --upgrade pip -q
@@ -68,6 +107,13 @@ JWT_SECRET=${JWT_SECRET}
 EOF_ENV
 chmod 600 "$APP_DIR/.env"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ "$SCRIPT_DIR" != "$APP_DIR" ]] && [[ -f "$SCRIPT_DIR/app.py" ]]; then
+  cp -f "$SCRIPT_DIR/app.py" "$APP_DIR/app.py"
+  cp -f "$SCRIPT_DIR/index.html" "$APP_DIR/index.html"
+  cp -f "$SCRIPT_DIR/pull_images.sh" "$APP_DIR/pull_images.sh" 2>/dev/null || true
+fi
+
 cat << EOF_SERVICE > /etc/systemd/system/bandwidth-manager.service
 [Unit]
 Description=Bandwidth Fleet Manager Pro Engine v1.6.0
@@ -80,6 +126,7 @@ User=root
 WorkingDirectory=${APP_DIR}
 EnvironmentFile=${APP_DIR}/.env
 LimitNOFILE=1048576
+LimitNPROC=524288
 ExecStart=${APP_DIR}/venv/bin/uvicorn app:app --host 0.0.0.0 --port ${PORT}
 Restart=always
 RestartSec=3
@@ -92,12 +139,9 @@ chmod 600 /etc/systemd/system/bandwidth-manager.service
 systemctl daemon-reload
 systemctl enable --now bandwidth-manager.service
 
-echo "[5/6] Mở cổng Firewall ${PORT}..."
-iptables -I INPUT -p tcp --dport ${PORT} -j ACCEPT 2>/dev/null || true
-if command -v ufw >/dev/null 2>&1; then ufw allow ${PORT}/tcp >/dev/null 2>&1 || true; fi
-
-echo "[6/6] Tải trước toàn bộ 8 Docker Images cho hệ thống..."
+echo "[6/6] Tải trước 8 Docker Images..."
 if [[ -f "$APP_DIR/pull_images.sh" ]]; then
+  chmod +x "$APP_DIR/pull_images.sh"
   bash "$APP_DIR/pull_images.sh" || true
 fi
 
@@ -107,6 +151,7 @@ PUB_IP=$(curl -s4 -m 3 --interface "$PRIMARY_IFACE" https://api.ipify.org 2>/dev
 echo "=========================================================================="
 echo " [OK] ĐÃ THIẾT LẬP THÀNH CÔNG BANDWIDTH FLEET MANAGER PRO v1.6.0!"
 echo " 👉 Địa chỉ Web Dashboard : http://${PUB_IP}:${PORT}"
-echo " 👉 Tài khoản             : ${ADMIN_USER}"
-echo " 👉 7 Nền tảng sẵn sàng   : Traffmonetizer, Honeygain, Pawns, Repocket, Bitping, EarnFM, PacketStream"
+echo " 👉 Tài khoản đăng nhập   : ${ADMIN_USER}"
+echo " 👉 Mật khẩu bảo mật      : (Mật khẩu riêng bạn vừa nhập)"
+echo " 👉 Đầy đủ 7 Platforms     : Traffmon, Honeygain, Pawns, Repocket, Bitping, EarnFM, PacketStream"
 echo "=========================================================================="
